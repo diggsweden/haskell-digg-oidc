@@ -1,0 +1,7 @@
+cradle:
+  stack:
+    - path: "./src"
+      component: "haskell-digg-oidc:lib"
+
+    - path: "./example/Main.hs"
+      component: "haskell-digg-oidc:exe:digg-oidc-example"
