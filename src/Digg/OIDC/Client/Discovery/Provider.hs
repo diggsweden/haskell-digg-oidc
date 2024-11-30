@@ -29,7 +29,7 @@ data Algorithm
 
 instance FromJSON Algorithm where
   parseJSON :: Value -> Parser Algorithm
-  parseJSON = withText "SigningAlgValue" $ \case
+  parseJSON = withText "Algorithm as id" $ \case
     "HS256" -> pure $ Algorithm HS256
     "HS384" -> pure $ Algorithm HS384
     "HS512" -> pure $ Algorithm HS512
@@ -41,7 +41,7 @@ instance FromJSON Algorithm where
     "ES512" -> pure $ Algorithm ES512
     "EdDSA" -> pure $ Algorithm EdDSA
     "None" -> pure $ Algorithm None
-    unknown -> pure $ Unsupported unknown
+    alg -> pure $ Unsupported alg
 
 -- | The 'Provider' data type represents an OpenID Connect (OIDC) provider.
 -- This type is used to encapsulate the details of an OIDC provider, which

@@ -6,10 +6,10 @@ SPDX-License-Identifier: MIT
 
 # Haskell OpenID Connect and OpenID Federation client testbed
 
-This is a fully functional client testbed and demonstrator written in haskell for OpenID Connect and OpenID Federation. It can be used as a showcase or as a basis for learning OpenID Connect and Federation and give various implementation hints. This is an ongoing project and by no means complete in support of the related standards.
+This is a client testbed and demonstrator written in haskell for OpenID Connect and OpenID Federation. It can be used as a showcase or as a basis for learning OpenID Connect and Federation specifications and give various implementation hints. This is an ongoing project and by no means complete in support of the related standards.
 
 
-Why Haskell? Haskell is a lazy, purely functional, statically typed language used in both academic and industrial settings and has been around quite a while. This testbed is to demonstrate the use of a functional language in solutions and standards endorsed by the agency.
+Why Haskell? Haskell is a lazy, purely functional, statically typed language used in both academic and industrial settings and has been around quite a while. This testbed is to demonstrate the use of a functional language as an example for solutions and standards endorsed by the agency.
 
 ## Table of Contents
 
@@ -26,21 +26,21 @@ Why Haskell? Haskell is a lazy, purely functional, statically typed language use
 
 ## Installation and Requirements
 
-The testbed is developed in haskell and uses the [stack](https://docs.haskellstack.org/en/stable/install_and_upgrade/) build system.
+The testbed is developed in haskell and uses the [stack](https://docs.haskellstack.org/en/stable/install_and_upgrade/) build system and verified to work with GHC 9.6.6.
 
 * Install the [stack](https://docs.haskellstack.org/en/stable/install_and_upgrade/) build system
 * Clone the repository
 * `cd` into the repository
-* `stack setup` to get the appropriate GHC for the project
+* `stack setup` to get the appropriate compiler set up for the project
 * To build the project, runt `stack build`
 * To execute the project, run `stack exec digg-oidc-example`
 
 ## Quick start instructions
 
-The quickest way to get the testbed up and running is to run it on your local computer.
+The quickest way to get the testbed up and running is to run it on your local computer and have the needed key-value-store running as a docker container.
 
 * Follow the **installation and requirements section**. This makes sure you can build and execute the testbed.
-* Use docker to start up a redis or a valkey storage on your computer. Dockerhub has both distributions.
+* Use docker to start up a redis or a valkey storage on your computer. Make sure you expose the 6379 port on your localhost. Dockerhub has both distributions.
 * Set up the following environment variables:
 
 ```
@@ -53,8 +53,9 @@ EXAMPLE_CLIENT_ID=thenameofyourclient
 
 * Execute the testbed with `stack exec digg-oidc-example`
 * Point your webbrowser to `http://localhost:3000/login`
+* To refresh your tokens with the OP point the webbrowser to `http://localhost:3000/refresh`
 
-You should now be able to login through your OP. If you want to test the token refresh point the browser to the **http://localhost:3000/refresh** endpoint. The testbed relies on a session cookie (**session**) to be able to track the session.
+You should now be able to login through your OP. If you want to test the token refresh point the browser to the **http://localhost:3000/refresh** endpoint. The testbed relies on a session cookie (**session**) to be able to track the session. Session data is stored in the key-value-store.
 
 ## Usage
 

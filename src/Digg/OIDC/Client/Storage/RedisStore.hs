@@ -8,10 +8,12 @@
 --    Provides functionality for storing OIDC session data in Redis.
 module Digg.OIDC.Client.Storage.RedisStore (redisStorage) where
 
-import qualified Data.Aeson as A
-import Data.ByteString (fromStrict, toStrict)
-import Database.Redis (Connection, del, expire, get, runRedis, set)
-import Digg.OIDC.Client.Session (Session, SessionId, SessionStorage (..))
+import qualified Data.Aeson               as A
+import           Data.ByteString          (fromStrict, toStrict)
+import           Database.Redis           (Connection, del, expire, get,
+                                           runRedis, set)
+import           Digg.OIDC.Client.Session (Session, SessionId,
+                                           SessionStorage (..))
 
 -- | 'redisStore' initializes a session store using a Redis connection.
 --
@@ -42,9 +44,9 @@ redisStorage conn =
     sessionGet sid = do
       res <- runRedis conn $ get sid
       case res of
-        Left _ -> return Nothing
+        Left _         -> return Nothing
         Right (Just v) -> return $ A.decode (fromStrict v)
-        Right Nothing -> return Nothing
+        Right Nothing  -> return Nothing
 
     sessionDelete :: SessionId -> IO ()
     sessionDelete sid = do

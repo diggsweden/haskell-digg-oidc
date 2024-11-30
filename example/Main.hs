@@ -49,6 +49,7 @@ import qualified Text.Blaze.Html5 as H
 import qualified Text.Blaze.Html5.Attributes as A
 import Web.Scotty.Cookie (SetCookie (..), defaultSetCookie, getCookie, sameSiteLax, setCookie)
 import Web.Scotty.Trans (ScottyT, get, html, middleware, post, queryParam, redirect, scottyT, status, text)
+import Control.Exception (throwIO)
 
 --
 -- Redis connection information
@@ -103,7 +104,7 @@ main = do
 
   -- Create the system DRG and the session storage
   sdrg <- getSystemDRG >>= newIORef
-  storage <- redisStorage <$> checkedConnect (redisConnectInfo redis)
+  storage <- redisStorage <$> catch (checkedConnect (redisConnectInfo redis)) (handleIOError "Failed to connect to Redis: ")
 
   -- Create the HTTP client manager and the OIDC client
   mgr <- newManager tlsManagerSettings
@@ -122,20 +123,27 @@ main = do
         mgr = mgr
       }
 
-getPort :: ByteString -> Int
-getPort bs = fromMaybe 3000 port
   where
-    port = case B.split ':' bs of
-      [] -> Nothing
-      [_] -> Nothing
-      xs ->
-        let p = (!! 0) . L.reverse $ xs
-         in fst <$> B.readInt p
 
-run :: Int -> AuthServerEnv -> IO ()
-run port env = scottyT port runReader run'
-  where
-    runReader a = runReaderT a env
+    handleIOError :: String -> IOError -> IO a
+    handleIOError msg e = do
+      liftIO $ print $ msg <> ": " <> displayException e
+      throwIO e
+      
+    getPort :: ByteString -> Int
+    getPort bs = fromMaybe 3000 port
+      where
+        port = case B.split ':' bs of
+          [] -> Nothing
+          [_] -> Nothing
+          xs ->
+            let p = (!! 0) . L.reverse $ xs
+            in fst <$> B.readInt p
+
+    run :: Int -> AuthServerEnv -> IO ()
+    run port env = scottyT port runReader run'
+      where
+        runReader a = runReaderT a env
 
 -- logRequestHeaders :: Application -> Application
 -- logRequestHeaders incoming request outgoing = do
@@ -192,7 +200,6 @@ run' = do
         { setCookieName = encodeUtf8 cookieName,
           setCookieValue = sid,
           setCookiePath = Just "/",
---          setCookieDomain = Just "localhost",
           setCookieHttpOnly = True,
           setCookieSecure = True,
           setCookieSameSite = Just sameSiteLax,
@@ -212,10 +219,12 @@ run' = do
     htmlSuccess :: Either String (TokenClaims ProfileClaims) -> Html
     htmlSuccess bool = do
       H.h1 "Result"
+      H.p $ H.text "This page contains the result of the login flow. For now it only displays the ID token claims or any errors."
       H.pre . H.toHtml . show $ bool
 
     htmlLogin = do
       H.h1 "Login"
+      H.p $ H.text "This page will contain more stuff later on, when we develop the testbed further. For now it only initiates the login flow."
       H.form ! A.method "post" ! A.action "/login" $
         H.button ! A.type_ "submit" $
           "login"
