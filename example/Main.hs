@@ -28,12 +28,13 @@ import Data.Tuple (swap)
 import Database.Redis (ConnectInfo (..), checkedConnect, defaultConnectInfo)
 import Digg.OIDC.Client (OIDC, createOIDC)
 import Digg.OIDC.Client.Discovery (discover)
+import Digg.OIDC.Client.Discovery.Provider (metadata)
 import Digg.OIDC.Client.Flow.AuthorizationCodeFlow (authorizationGranted, initiateAuthorizationRequest)
 import Digg.OIDC.Client.Flow.RefreshTokenFlow (refreshToken)
 import Digg.OIDC.Client.Session (SessionStorage (..))
 import Digg.OIDC.Client.Storage.RedisStore (redisStorage)
 import Digg.OIDC.Client.Tokens (TokenClaims (..))
-import Digg.OIDC.Types (Address (..), IssuerLocation)
+import Digg.OIDC.Types (Address (..), Issuer)
 import GHC.Exception.Type (SomeException)
 import GHC.Generics (Generic)
 import Network.HTTP.Client (Manager, newManager)
@@ -50,6 +51,7 @@ import qualified Text.Blaze.Html5.Attributes as A
 import Web.Scotty.Cookie (SetCookie (..), defaultSetCookie, getCookie, sameSiteLax, setCookie)
 import Web.Scotty.Trans (ScottyT, get, html, middleware, post, queryParam, redirect, scottyT, status, text)
 import Control.Exception (throwIO)
+import Text.Pretty.Simple (pPrint)
 
 --
 -- Redis connection information
@@ -65,7 +67,7 @@ redisConnectInfo host = defaultConnectInfo {connectHost = host}
 -- This data type is used to encapsulate all necessary settings and parameters required
 -- for the example to operate correctly.
 data AuthServerEnv = AuthServerEnv
-  { issuer :: IssuerLocation,     -- ^ The OIDC provider issuer location.
+  { issuer :: Issuer,     -- ^ The OIDC provider issuer location.
     oidc :: OIDC,                 -- ^ The OIDC client configuration.
     storage :: SessionStorage IO, -- ^ The session storage.
     sdrg :: IORef SystemDRG,      -- ^ The system DRG.
@@ -97,7 +99,7 @@ main = do
 
   -- Load the environment variables
   baseUrl <- B.pack . fromMaybe "http://localhost:3000" <$> lookupEnv "EXAMPLE_CLIENT_BASE_URL"
-  issuer <- (\i -> Address {uri = fromMaybe nullURI i}) . parseAbsoluteURI . fromMaybe "https://change.me" <$> lookupEnv "EXAMPLE_ISSUER_URL"
+  issuer <- toStrict . pack . fromMaybe "https://change.me" <$> lookupEnv "EXAMPLE_ISSUER_URL"
   client <- toStrict . pack . fromMaybe "ChangeToYourClientId" <$> lookupEnv "EXAMPLE_CLIENT_ID"
   secret <- toStrict . pack . fromMaybe "ChangeToYourClientsSecret" <$> lookupEnv "EXAMPLE_CLIENT_SECRET"
   redis <- fromMaybe "localhost" <$> lookupEnv "EXAMPLE_REDIS_HOST"
@@ -109,6 +111,7 @@ main = do
   -- Create the HTTP client manager and the OIDC client
   mgr <- newManager tlsManagerSettings
   provider <- liftIO $ discover issuer mgr
+  pPrint $ metadata provider
   let oidc = createOIDC client secret (toStrict (fromStrict (decodeUtf8 baseUrl) <> "/login/callback")) provider
 
   -- Start the server

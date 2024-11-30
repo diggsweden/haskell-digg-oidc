@@ -9,7 +9,7 @@
 --
 --    Defines internal types and functions for the OIDC client library. Not to besued outside the
 --    library.
-module Digg.OIDC.Client.Internal (TokensResponse (..)) where
+module Digg.OIDC.Client.Internal (TokensResponse (..), isAnElementOf) where
 
 import           Control.Applicative ((<|>))
 import           Control.Monad       (mzero)
@@ -51,3 +51,7 @@ instance FromJSON TokensResponse where
 
   parseJSON _ = mzero
 
+-- | Checks if an element is present in a given list wrapped in a 'Maybe' context.
+isAnElementOf :: Eq a => a -> Maybe [a] -> Bool
+isAnElementOf _ Nothing = False
+isAnElementOf a (Just as) = a `elem` as

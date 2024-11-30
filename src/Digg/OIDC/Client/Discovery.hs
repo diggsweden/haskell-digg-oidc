@@ -7,34 +7,36 @@
 --    Maintainer: tomas.stenlund@telia.com
 --    Stability: experimental
 --
---    The module defines functions to discover OIDC providers.
+--    The module defines functions for the OpenID Provider Configuration Request according to
+--    OpenID Connect Discovery 1.0
 module Digg.OIDC.Client.Discovery (discover) where
 
 import           Control.Monad.Catch                 (MonadThrow (throwM),
                                                       catch)
 import           Data.Aeson                          (eitherDecode)
-import           Data.Text                           (pack)
+import           Data.Text                           (pack, Text, unpack)
 import           Digg.OIDC.Client                    (OIDCException (..))
 import           Digg.OIDC.Client.Discovery.Provider (Provider (..),
                                                       ProviderMetadata (..))
 import           Digg.OIDC.Types                     (Address (..), Endpoint,
-                                                      IssuerLocation)
+                                                      Issuer)
 import           Jose.Jwk                            (Jwk, keys)
 import           Network.HTTP.Client                 (HttpException, Manager,
                                                       Request, httpLbs,
                                                       requestFromURI,
                                                       responseBody,
-                                                      responseStatus)
+                                                      responseStatus,
+                                                      parseRequest)
 import           Network.HTTP.Types.Status           (Status (..))
-import           Network.URI                         (URI (..), nullURI,
-                                                      relativeTo)
 
-wellKnownURI :: URI
-wellKnownURI = nullURI {uriPath = ".well-known/openid-configuration"}
+import Control.Monad (when)
 
-createDiscoveryRequest :: (MonadThrow m) => IssuerLocation -> m Request
+wellKnownURI :: Text
+wellKnownURI = "/.well-known/openid-configuration"
+
+createDiscoveryRequest :: (MonadThrow m) => Issuer -> m Request
 createDiscoveryRequest location = do
-  requestFromURI $ relativeTo wellKnownURI $ uri location
+  parseRequest $ unpack $ location <> wellKnownURI
 
 createJWKSRequest :: (MonadThrow m) => Endpoint -> m Request
 createJWKSRequest location = do
@@ -44,15 +46,17 @@ createJWKSRequest location = do
 --
 -- This function takes an 'IssuerLocation' and an HTTP 'Manager' and performs
 -- the HTTP requests to retrieve the provider's configuration.
-discover :: IssuerLocation  -- ^ The issuer location, the well-known openid configuration path is appended to this location
+discover :: Issuer  -- ^ The issuer location, the well-known openid configuration path is appended to this location
   -> Manager                -- ^ The HTTP manager to use for the requests
   -> IO Provider            -- ^ The discovered provider configuration
-discover location manager =
-  catch discoverCall discoverError
+discover issuer manager = do
+  provider <- catch discoverCall discoverError
+  validateProvider provider
+  return provider
   where
     discoverCall :: IO Provider
     discoverCall = do
-      md <- getMetadata location
+      md <- getMetadata issuer
       p <- getJWKS $ providerJWKSUri md
       return $ Provider md p
 
@@ -60,7 +64,7 @@ discover location manager =
     discoverError e = do
       throwM $ BackendHTTPException e
 
-    getMetadata :: IssuerLocation -> IO ProviderMetadata
+    getMetadata :: Issuer -> IO ProviderMetadata
     getMetadata loc = do
       req <- createDiscoveryRequest loc
       res <- httpLbs req manager
@@ -81,3 +85,8 @@ discover location manager =
       case keys <$> eitherDecode (responseBody res) of
         Right ks -> return ks
         Left err -> throwM $ DiscoveryException $ "Failed to parse JWKS JSON response, error: " <> pack err
+
+    validateProvider :: Provider -> IO ()
+    validateProvider provider = do
+      let md = metadata provider
+      when (providerIssuer md /= issuer) $ throwM $ DiscoveryException "Issuer value do not match configuration"

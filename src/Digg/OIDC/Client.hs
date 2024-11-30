@@ -48,6 +48,7 @@ data OIDCException
   | ValidationException Text            -- ^ Represents a validation exception during any of the OIDC flows
   | UnsecuredJWT ByteString             -- ^ Represents an unsecured JWT error, during login or refresh flows
   | JWTException JwtError               -- ^ Represents a JWT error, during login or refresh flows
+  | UnsupportedByOP Text                -- ^ Represents an unsupported operation by the OpenID Provider
   deriving (Show)
 
 instance Exception OIDCException

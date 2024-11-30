@@ -11,7 +11,7 @@
 module Digg.OIDC.Types
   ( Nonce,
     State,
-    IssuerLocation,
+    Issuer,
     Endpoint,
     Scope,
     ScopeValue,
@@ -33,7 +33,7 @@ import           Network.URI      (URI, parseAbsoluteURI)
 -- This is a workaround to be able to handle URI in JSON format.
 newtype Address = Address {
     uri :: URI -- ^ The URI value of the address
-  } deriving (Show)
+  } deriving (Show, Eq)
 
 instance ToJSON Address where
   toJSON :: Address -> Value
@@ -80,10 +80,9 @@ type ScopeValue = Text
 -- the permissions or access levels requested by an OpenID Connect client.
 type Scope = [ScopeValue]
 
--- | 'IssuerLocation' is a type alias for 'Address', representing the location of the OpenID Connect (OIDC) issuer.
--- This type is used to store the URI of the OIDC issuer
--- and used mainly during discovery.
-type IssuerLocation = Address
+-- | 'Issuer' is a type alias for 'Text', representing the OpenID Connect (OIDC) issuer.
+-- it is mainly used during discovery and verification.
+type Issuer = Text
 
 -- | 'Endpoint' is a type alias for 'Address', representing an OpenID Connect (OIDC) endpoint.
 -- This type is used to define the various endpoints involved in the OIDC flows.

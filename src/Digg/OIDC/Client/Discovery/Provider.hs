@@ -61,13 +61,17 @@ data ProviderMetadata = ProviderMetadata
   { providerIssuer                            :: Text,              -- ^ The issuer value of the provider
     providerAuthorizationEndpoint             :: Endpoint,          -- ^ The authorization endpoint
     providerTokenEndpoint                     :: Endpoint,          -- ^ The token endpoint
+    providerRegistrationEndpoint              :: Maybe Endpoint,    -- ^ The registration endpoint
+    providerScopesSupported                   :: Maybe Scope,       -- ^ The supported scopes
+    providerResponseModesSupported            :: Maybe [Text],            -- ^ The supported response modes
+    providerGrantTypesSupported               :: Maybe [Text],            -- ^ The supported grant types
+    providerACRValuesSupported                :: Maybe [Text],      -- ^ The supported ACR values
     providerUserinfoEndpoint                  :: Maybe Endpoint,    -- ^ The userinfo endpoint
     providerRevocationEndpoint                :: Maybe Endpoint,    -- ^ The revocation endpoint
     providerJWKSUri                           :: Endpoint,          -- ^ The JWKS URI
     providerResponseTypesSupported            :: [Text],            -- ^ The supported response types
     providerSubjectTypesSupported             :: [Text],            -- ^ The supported subject types
     providerIdTokenSigningAlgValuesSupported  :: [Algorithm],       -- ^ The supported signing algorithms for ID tokens
-    providerScopesSupported                   :: Maybe Scope,       -- ^ The supported scopes
     providerTokenEndpointAuthMethodsSupported :: Maybe [Text],      -- ^ The supported token endpoint authentication methods
     providerClaimsSupported                   :: Maybe [Text]       -- ^ The supported claims
   }

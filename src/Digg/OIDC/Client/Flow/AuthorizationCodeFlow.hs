@@ -11,7 +11,7 @@
 --    Provides functionality for the authorization flow and initiate an ongoing session.
 module Digg.OIDC.Client.Flow.AuthorizationCodeFlow (createAuthorizationRequestURL, initiateAuthorizationRequest, authorizationGranted) where
 
-import           Control.Monad                       (when)
+import           Control.Monad                       (when, unless)
 import           Control.Monad.Catch                 (MonadCatch,
                                                       MonadThrow (throwM))
 import           Control.Monad.IO.Class              (MonadIO (liftIO))
@@ -22,10 +22,10 @@ import           Data.Maybe                          (isJust, isNothing)
 import           Data.Text                           (pack, unpack)
 import           Data.Text.Encoding                  (encodeUtf8)
 import           Digg.OIDC.Client                    (OIDC (..),
-                                                      OIDCException (InvalidState, ValidationException))
+                                                      OIDCException (InvalidState, ValidationException, UnsupportedByOP))
 import           Digg.OIDC.Client.Discovery.Provider (Provider (..),
                                                       ProviderMetadata (..))
-import           Digg.OIDC.Client.Internal           (TokensResponse (..))
+import           Digg.OIDC.Client.Internal           (TokensResponse (..), isAnElementOf)
 import           Digg.OIDC.Client.Session            (Session (..), SessionId,
                                                       SessionStorage (..))
 import qualified Digg.OIDC.Client.Tokens             as T
@@ -51,6 +51,10 @@ createAuthorizationRequestURL :: (MonadCatch m) => OIDC -- ^ The OIDC configurat
   -> Parameters   -- ^ Extra parameters
   -> m URI        -- ^ The authorization request URL to redirect to
 createAuthorizationRequestURL oidc scope state nonce extra = do
+
+  -- Verify that the provider supports the response type
+  unless ("code" `elem` providerResponseTypesSupported (metadata $ oidcProvider oidc)) $ throwM $ UnsupportedByOP "Response type code not supported"
+
   authenticationURL
   where
     authenticationURL :: (MonadCatch m) => m URI
@@ -85,6 +89,8 @@ initiateAuthorizationRequest :: (MonadCatch m) => SessionStorage m  -- ^ The ses
   -> Parameters -- ^ Extra parameters
   -> m URI      -- ^ The authorization request URL to redirect to
 initiateAuthorizationRequest storage sid oidc scope extra = do
+
+  -- Create a new session
   s <- sessionStoreGenerate storage
   n <- sessionStoreGenerate storage
   sessionStoreSave storage sid $
@@ -109,6 +115,11 @@ authorizationGranted :: (MonadIO m, MonadCatch m, FromJSON a) => SessionStorage 
   -> Code       -- ^ The authorization code
   -> m (T.TokenClaims a)
 authorizationGranted storage sid mgr oidc state code = do
+  
+  -- Verify that the provider supports authorization code grant type
+  unless (isAnElementOf "authorization_code" (providerGrantTypesSupported (metadata $ oidcProvider oidc))) $ throwM $ UnsupportedByOP "Authorization code flow not supported"
+
+  -- Verify the session
   session <- sessionStoreGet storage sid
   session' <- verifySession session
   tr <- liftIO callTokenEndpoint
