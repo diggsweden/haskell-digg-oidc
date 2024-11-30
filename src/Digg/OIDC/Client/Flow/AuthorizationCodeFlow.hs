@@ -9,7 +9,7 @@
 --    Stability: experimental
 --
 --    Provides functionality for the authorization flow and initiate an ongoing session.
-module Digg.OIDC.Client.Flow.AuthorizationCodeFlow (createAuthorizationRequestURL, initiateAuthorizationRequest, authorizationGranted) where
+module Digg.OIDC.Client.Flow.AuthorizationCodeFlow (initiateAuthorizationRequest, authorizationGranted) where
 
 import           Control.Monad                       (when, unless)
 import           Control.Monad.Catch                 (MonadCatch,
@@ -51,10 +51,6 @@ createAuthorizationRequestURL :: (MonadCatch m) => OIDC -- ^ The OIDC configurat
   -> Parameters   -- ^ Extra parameters
   -> m URI        -- ^ The authorization request URL to redirect to
 createAuthorizationRequestURL oidc scope state nonce extra = do
-
-  -- Verify that the provider supports the response type
-  unless ("code" `elem` providerResponseTypesSupported (metadata $ oidcProvider oidc)) $ throwM $ UnsupportedByOP "Response type code not supported"
-
   authenticationURL
   where
     authenticationURL :: (MonadCatch m) => m URI
@@ -90,6 +86,9 @@ initiateAuthorizationRequest :: (MonadCatch m) => SessionStorage m  -- ^ The ses
   -> m URI      -- ^ The authorization request URL to redirect to
 initiateAuthorizationRequest storage sid oidc scope extra = do
 
+  -- Verify that the provider supports the response type
+  unless ("code" `elem` providerResponseTypesSupported (metadata $ oidcProvider oidc)) $ throwM $ UnsupportedByOP "Response type code not supported"
+
   -- Create a new session
   s <- sessionStoreGenerate storage
   n <- sessionStoreGenerate storage
@@ -117,7 +116,7 @@ authorizationGranted :: (MonadIO m, MonadCatch m, FromJSON a) => SessionStorage 
 authorizationGranted storage sid mgr oidc state code = do
   
   -- Verify that the provider supports authorization code grant type
-  unless (isAnElementOf "authorization_code" (providerGrantTypesSupported (metadata $ oidcProvider oidc))) $ throwM $ UnsupportedByOP "Authorization code flow not supported"
+  unless (isAnElementOf "authorization_code" (providerGrantTypesSupported (metadata $ oidcProvider oidc))) $ throwM $ UnsupportedByOP "Authorization code grant not supported"
 
   -- Verify the session
   session <- sessionStoreGet storage sid

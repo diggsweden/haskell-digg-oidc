@@ -11,7 +11,7 @@
 --    Provides functionality for refreshing a token in an ongoing session.
 module Digg.OIDC.Client.Flow.RefreshTokenFlow (refreshToken) where
 
-import           Control.Monad                       (when)
+import           Control.Monad                       (when, unless)
 import           Control.Monad.Catch                 (MonadCatch,
                                                       MonadThrow (throwM))
 import           Control.Monad.IO.Class              (MonadIO (liftIO))
@@ -22,10 +22,10 @@ import           Data.Maybe                          (fromJust, isJust,
 import           Data.Text                           (pack)
 import           Data.Text.Encoding                  (encodeUtf8)
 import           Digg.OIDC.Client                    (OIDC (..),
-                                                      OIDCException (InvalidState, ValidationException))
+                                                      OIDCException (InvalidState, ValidationException, UnsupportedByOP))
 import           Digg.OIDC.Client.Discovery.Provider (Provider (..),
                                                       ProviderMetadata (..))
-import           Digg.OIDC.Client.Internal           (TokensResponse (..))
+import           Digg.OIDC.Client.Internal           (TokensResponse (..), isAnElementOf)
 import           Digg.OIDC.Client.Session            (Session (..), SessionId,
                                                       SessionStorage (..))
 import           Digg.OIDC.Client.Tokens             (NoExtraClaims,
@@ -51,6 +51,10 @@ refreshToken :: (MonadIO m, MonadCatch m, FromJSON a) => SessionStorage m   -- ^
   -> OIDC      -- ^ The OIDC configuration
   -> m (TokenClaims a) -- ^ The token claims
 refreshToken storage sid mgr oidc = do
+
+  -- Verify that the provider supports authorization code grant type
+  unless (isAnElementOf "refresh_token" (providerGrantTypesSupported (metadata $ oidcProvider oidc))) $ throwM $ UnsupportedByOP "Refresh token grant type not supported"
+
   session <- sessionStoreGet storage sid
   session' <- verifySession session
   tr <- liftIO $ callTokenEndpoint (sessionCode session') (sessionRefreshToken session')
