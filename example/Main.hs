@@ -23,24 +23,24 @@ import Data.Maybe (fromMaybe)
 import Data.Text (Text)
 import Data.Text.Encoding (encodeUtf8, decodeUtf8)
 import Data.Text.Lazy (fromStrict, pack, toStrict)
-import Data.Time.Clock (secondsToDiffTime)
+import Data.Time.Clock (secondsToDiffTime, secondsToNominalDiffTime)
 import Data.Tuple (swap)
 import Database.Redis (ConnectInfo (..), checkedConnect, defaultConnectInfo)
 import Digg.OIDC.Client (OIDC, createOIDC)
 import Digg.OIDC.Client.Discovery (discover)
 import Digg.OIDC.Client.Discovery.Provider (metadata)
 import Digg.OIDC.Client.Flow.AuthorizationCodeFlow (authorizationGranted, initiateAuthorizationRequest)
+import Digg.OIDC.Client.Flow.LogoutFlow (initiateLogoutRequest, logoutCompleted)
 import Digg.OIDC.Client.Flow.RefreshTokenFlow (refreshToken)
 import Digg.OIDC.Client.Session (SessionStorage (..))
 import Digg.OIDC.Client.Storage.RedisStore (redisStorage)
 import Digg.OIDC.Client.Tokens (TokenClaims (..))
-import Digg.OIDC.Types (Address (..), Issuer)
+import Digg.OIDC.Types (Issuer)
 import GHC.Exception.Type (SomeException)
 import GHC.Generics (Generic)
 import Network.HTTP.Client (Manager, newManager)
 import Network.HTTP.Client.TLS (tlsManagerSettings)
 import Network.HTTP.Types (badRequest400, notFound404, unauthorized401)
-import Network.URI (nullURI, parseAbsoluteURI)
 import Network.Wai.Middleware.RequestLogger (logStdoutDev)
 import System.Environment (lookupEnv)
 import Text.Blaze.Html (Html)
@@ -112,7 +112,7 @@ main = do
   mgr <- newManager tlsManagerSettings
   provider <- liftIO $ discover issuer mgr
   pPrint $ metadata provider
-  let oidc = createOIDC client secret (toStrict (fromStrict (decodeUtf8 baseUrl) <> "/login/callback")) provider
+  let oidc = createOIDC client secret (toStrict (fromStrict (decodeUtf8 baseUrl) <> "/login/callback")) (Just (toStrict (fromStrict (decodeUtf8 baseUrl) <> "/logout/callback"))) provider
 
   -- Start the server
   let port = getPort baseUrl
@@ -177,6 +177,41 @@ run' = do
       (redirect . pack . show)
       muri
 
+  -- \| Handler for the "/login/callback" route.
+  -- This route is used as the callback URL for the OIDC login flow and will process
+  -- the login response from the provider.
+  get "/login/callback" $ do
+    err <- catch (Just <$> queryParam "error") noValue
+    case err of
+      Just e -> status401 $ fromStrict e
+      Nothing -> do
+        getCookie cookieName >>= doLoginCallback
+
+  -- | Handler for the logout route.
+  get "/logout" $ do
+    sid <- getCookie cookieName
+    case sid of
+      Nothing -> status404 "No current ongoing session found"
+      Just s -> do
+        AuthServerEnv {..} <- lift ask
+        muri <- liftIO $ catch (Right <$> initiateLogoutRequest storage (encodeUtf8 s) oidc []) handleError
+        either
+          (status400 . pack)
+          (redirect . pack . show)
+          muri
+
+  -- | Handler for the logout callback endpoint.
+  -- This route is triggered after a user logs out and the OIDC provider
+  -- redirects back to the application. It processes the logout callback
+  -- and performs any necessary cleanup or redirection.
+  get "/logout/callback" $ do
+    err <- catch (Just <$> queryParam "error") noValue
+    case err of
+      Just e -> status401 $ fromStrict e
+      Nothing -> do
+        getCookie cookieName >>= doLogoutCallback
+        setCookie deleteCookie
+
   -- \| Handler for the "/refresh" route.
   -- This route is used to refresh the tokens with the OP.
   get "/refresh" $ do
@@ -188,16 +223,8 @@ run' = do
         blaze $ htmlSuccess tokens
       Nothing -> status404 "No current ongoing session found"
 
-  -- \| Handler for the "/login/callback" route.
-  -- This route is used as the callback URL for the OIDC login flow and will process
-  -- the login response from the provider.
-  get "/login/callback" $ do
-    err <- catch (Just <$> queryParam "error") noValue
-    case err of
-      Just e -> status401 $ fromStrict e
-      Nothing -> do
-        getCookie cookieName >>= doCallback
   where
+
     createCookie sid =
       defaultSetCookie
         { setCookieName = encodeUtf8 cookieName,
@@ -209,7 +236,15 @@ run' = do
           setCookieMaxAge = Just $ secondsToDiffTime 600
         }
 
-    doCallback cookie =
+    deleteCookie =
+      defaultSetCookie
+        { setCookieName = encodeUtf8 cookieName,
+          setCookieValue = "",
+          setCookiePath = Just "/",
+          setCookieMaxAge = Just $ secondsToDiffTime 0
+        }
+
+    doLoginCallback cookie =
       case cookie of
         Just sid -> do
           AuthServerEnv {..} <- lift ask
@@ -219,10 +254,26 @@ run' = do
           blaze $ htmlSuccess tokens
         Nothing -> status400 "Missing session information"
 
+    doLogoutCallback cookie =
+      case cookie of
+        Just sid -> do
+          AuthServerEnv {..} <- lift ask
+          state <- queryParam "state"
+          result <- liftIO $ catch (Right <$> logoutCompleted storage (encodeUtf8 sid) state) handleError
+          blaze $ htmlLoggedOut result
+        Nothing -> status400 "Missing session information"
+
+    htmlLoggedOut :: Either String () -> Html
+    htmlLoggedOut result = do
+      H.h1 "Result"
+      H.p $ H.text "This page contains the result of the logout flow."
+      H.pre . H.toHtml . show $ result
+
+
     htmlSuccess :: Either String (TokenClaims ProfileClaims) -> Html
     htmlSuccess bool = do
       H.h1 "Result"
-      H.p $ H.text "This page contains the result of the login flow. For now it only displays the ID token claims or any errors."
+      H.p $ H.text "This page contains the result of the login or refresh flow. For now it only displays the ID token claims or any errors."
       H.pre . H.toHtml . show $ bool
 
     htmlLogin = do

@@ -27,6 +27,7 @@ library
                       , Digg.OIDC.Client.Discovery
                       , Digg.OIDC.Client.Tokens
                       , Digg.OIDC.Client.Flow.AuthorizationCodeFlow
+                      , Digg.OIDC.Client.Flow.LogoutFlow
                       , Digg.OIDC.Client.Flow.RefreshTokenFlow
                       , Digg.OIDC.Client
                       , Digg.OIDC.Types   

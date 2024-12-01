@@ -22,7 +22,7 @@ import           Data.Maybe                          (fromJust, isJust,
 import           Data.Text                           (pack)
 import           Data.Text.Encoding                  (encodeUtf8)
 import           Digg.OIDC.Client                    (OIDC (..),
-                                                      OIDCException (InvalidState, ValidationException, UnsupportedByOP))
+                                                      OIDCException (InvalidState, ValidationException, UnsupportedOperation))
 import           Digg.OIDC.Client.Discovery.Provider (Provider (..),
                                                       ProviderMetadata (..))
 import           Digg.OIDC.Client.Internal           (TokensResponse (..), isAnElementOf)
@@ -53,7 +53,7 @@ refreshToken :: (MonadIO m, MonadCatch m, FromJSON a) => SessionStorage m   -- ^
 refreshToken storage sid mgr oidc = do
 
   -- Verify that the provider supports authorization code grant type
-  unless (isAnElementOf "refresh_token" (providerGrantTypesSupported (metadata $ oidcProvider oidc))) $ throwM $ UnsupportedByOP "Refresh token grant type not supported"
+  unless (isAnElementOf "refresh_token" (providerGrantTypesSupported (metadata $ oidcProvider oidc))) $ throwM $ UnsupportedOperation "Refresh token grant type not supported"
 
   session <- sessionStoreGet storage sid
   session' <- verifySession session
@@ -83,13 +83,13 @@ refreshToken storage sid mgr oidc = do
 
     verifySession :: (MonadIO m, MonadThrow m) => Maybe Session -> m Session
     verifySession Nothing = do
-      throwM $ InvalidState "No session found"
+      throwM $ InvalidState "No session found in storage"
     verifySession (Just s) = do
       when (sessionState s /= "") $ throwM $ InvalidState "State should be empty"
-      when (isNothing (sessionAccessToken s)) $ throwM $ InvalidState "No access token"
-      when (isNothing (sessionRefreshToken s)) $ throwM $ InvalidState "No refreshtoken"
-      when (isJust (sessionNonce s)) $ throwM $ InvalidState "Nonce should be empty"
-      when (isNothing (sessionCode s)) $ throwM $ InvalidState "Missing code"
+      when (isNothing (sessionAccessToken s)) $ throwM $ InvalidState "No access token, wrong state"
+      when (isNothing (sessionRefreshToken s)) $ throwM $ InvalidState "No refreshtoken, wrong state"
+      when (isJust (sessionNonce s)) $ throwM $ InvalidState "Nonce should be empty, wrong state"
+      when (isNothing (sessionCode s)) $ throwM $ InvalidState "Missing code, wrong state"
       return s
 
     callTokenEndpoint :: Maybe Code -> Maybe B.ByteString -> IO TokensResponse

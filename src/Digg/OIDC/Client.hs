@@ -15,11 +15,12 @@ import           Digg.OIDC.Client.Discovery.Provider (Provider)
 import           Jose.Jwt                            (JwtError)
 import           Network.HTTP.Client                 (HttpException)
 
--- | This data type represents information needed in the OpenID flow.
+-- | This data type represents information needed in the OpenID flows.
 data OIDC = OIDC
   { oidcClientId     :: Text,     -- ^ The client id as defined by the OIDC provider.
     oidcClientSecret :: Text,     -- ^ The client secret as defined by the OIDC provider.
     oidcRedirectUri  :: Text,     -- ^ The redirect URI.
+    oidcLogoutRedirectUri :: Maybe Text, -- ^ The logout redirect URI.
     oidcProvider     :: Provider  -- ^ The OIDC provider configuration.
   }
 
@@ -27,13 +28,15 @@ data OIDC = OIDC
 createOIDC :: Text  -- ^ The client id as defined by the OIDC provider.
   -> Text           -- ^ The client secret as defined by the OIDC provider.
   -> Text           -- ^ The redirect URI.
+  -> Maybe Text
   -> Provider       -- ^ The OIDC provider configuration.
   -> OIDC           -- ^ The OIDC client configuration.
-createOIDC clientId clientSecret redirectURI provider =
+createOIDC clientId clientSecret redirectURI logoutRedirectURI provider =
   OIDC
     { oidcClientId = clientId,
       oidcClientSecret = clientSecret,
       oidcRedirectUri = redirectURI,
+      oidcLogoutRedirectUri = logoutRedirectURI,
       oidcProvider = provider
     }
 
@@ -43,12 +46,12 @@ createOIDC clientId clientSecret redirectURI provider =
 --   authentication and authorization flows.
 data OIDCException
   = DiscoveryException Text             -- ^ Represents an exception that occurred during the OIDC provider discovery process
-  | BackendHTTPException HttpException  -- ^ Represents an HTTP exception that occurred in the backend call
+  | BackendHTTPException HttpException  -- ^ Represents an HTTP exception that occurred in a backend call
   | InvalidState Text                   -- ^ Represents an invalid state exception during any of the OIDC flows
   | ValidationException Text            -- ^ Represents a validation exception during any of the OIDC flows
   | UnsecuredJWT ByteString             -- ^ Represents an unsecured JWT error, during login or refresh flows
   | JWTException JwtError               -- ^ Represents a JWT error, during login or refresh flows
-  | UnsupportedByOP Text                -- ^ Represents an unsupported operation by the OpenID Provider
+  | UnsupportedOperation Text           -- ^ Represents an unsupported operation by the OpenID Provider
   deriving (Show)
 
 instance Exception OIDCException

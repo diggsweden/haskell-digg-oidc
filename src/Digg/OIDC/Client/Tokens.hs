@@ -148,13 +148,13 @@ validateIdClaims issuer client n claims = do
     now <- getCurrentIntDate
 
     unless (iss claims == issuer)
-        $ throwM $ ValidationException $ "issuer from token \"" <> iss claims <> "\" is different than expected issuer \"" <> issuer <> "\""
+        $ throwM $ ValidationException $ "Issuer in token \"" <> iss claims <> "\" is different than expected issuer \"" <> issuer <> "\""
 
     unless (client `elem` aud claims)
-        $ throwM $ ValidationException $ "our client \"" <> client <> "\" isn't contained in the token's audience " <> (pack . show) (aud claims)
+        $ throwM $ ValidationException $ "Our client \"" <> client <> "\" isn't contained in the token's audience " <> (pack . show) (aud claims)
 
     unless (now < exp claims)
-        $ throwM $ ValidationException "received token has expired"
+        $ throwM $ ValidationException "Received token has expired"
 
     unless (nonce claims == n)
         $ throwM $ ValidationException "Inconsistent nonce"
@@ -166,6 +166,8 @@ validateIdClaims issuer client n claims = do
 -- It performs the necessary checks to ensure that the claims are valid
 -- and belong to the expected audience.
 --
+-- Maybe this is not really needed.
+--
 -- If not it throws a 'ValidationException'.
 validateAccessClaims :: Text  -- ^ The expected issuer
   -> TokenClaims a            -- ^ The token claims
@@ -175,7 +177,7 @@ validateAccessClaims issuer claims = do
     now <- getCurrentIntDate
 
     unless (iss claims == issuer)
-        $ throwM $ ValidationException $ "issuer from token \"" <> iss claims <> "\" is different than expected issuer \"" <> issuer <> "\""
+        $ throwM $ ValidationException $ "Issuer from token \"" <> iss claims <> "\" is different than expected issuer \"" <> issuer <> "\""
 
     --
     -- Which value should be in the audience for the accesstoken?
@@ -184,7 +186,7 @@ validateAccessClaims issuer claims = do
     --    $ throwM $ ValidationException $ "our client \"" <> client <> "\" isn't contained in the token's audience " <> (pack . show) (aud claims)
 
     unless (now < exp claims)
-        $ throwM $ ValidationException "received token has expired"
+        $ throwM $ ValidationException "Received token has expired"
 
 getCurrentIntDate :: IO IntDate
 getCurrentIntDate = IntDate <$> getPOSIXTime

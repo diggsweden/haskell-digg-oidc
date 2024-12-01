@@ -22,7 +22,7 @@ import           Data.Maybe                          (isJust, isNothing)
 import           Data.Text                           (pack, unpack)
 import           Data.Text.Encoding                  (encodeUtf8)
 import           Digg.OIDC.Client                    (OIDC (..),
-                                                      OIDCException (InvalidState, ValidationException, UnsupportedByOP))
+                                                      OIDCException (InvalidState, ValidationException, UnsupportedOperation))
 import           Digg.OIDC.Client.Discovery.Provider (Provider (..),
                                                       ProviderMetadata (..))
 import           Digg.OIDC.Client.Internal           (TokensResponse (..), isAnElementOf)
@@ -87,7 +87,7 @@ initiateAuthorizationRequest :: (MonadCatch m) => SessionStorage m  -- ^ The ses
 initiateAuthorizationRequest storage sid oidc scope extra = do
 
   -- Verify that the provider supports the response type
-  unless ("code" `elem` providerResponseTypesSupported (metadata $ oidcProvider oidc)) $ throwM $ UnsupportedByOP "Response type code not supported"
+  unless ("code" `elem` providerResponseTypesSupported (metadata $ oidcProvider oidc)) $ throwM $ UnsupportedOperation "Response type code not supported by OP"
 
   -- Create a new session
   s <- sessionStoreGenerate storage
@@ -114,9 +114,9 @@ authorizationGranted :: (MonadIO m, MonadCatch m, FromJSON a) => SessionStorage 
   -> Code       -- ^ The authorization code
   -> m (T.TokenClaims a)
 authorizationGranted storage sid mgr oidc state code = do
-  
+
   -- Verify that the provider supports authorization code grant type
-  unless (isAnElementOf "authorization_code" (providerGrantTypesSupported (metadata $ oidcProvider oidc))) $ throwM $ UnsupportedByOP "Authorization code grant not supported"
+  unless (isAnElementOf "authorization_code" (providerGrantTypesSupported (metadata $ oidcProvider oidc))) $ throwM $ UnsupportedOperation "Authorization code grant not supported by OP"
 
   -- Verify the session
   session <- sessionStoreGet storage sid
@@ -146,7 +146,7 @@ authorizationGranted storage sid mgr oidc state code = do
   return claims
   where
 
-    verifySession :: (MonadIO m, MonadThrow m) => Maybe Session -> m (Session)
+    verifySession :: (MonadIO m, MonadThrow m) => Maybe Session -> m Session
     verifySession Nothing = do
       throwM $ InvalidState "No session found"
     verifySession (Just s) = do

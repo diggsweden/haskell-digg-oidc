@@ -54,6 +54,7 @@ EXAMPLE_CLIENT_ID=thenameofyourclient
 * Execute the testbed with `stack exec digg-oidc-example`
 * Point your webbrowser to `http://localhost:3000/login`
 * To refresh your tokens with the OP point the webbrowser to `http://localhost:3000/refresh`
+* To logout with the OP point the webbrowser to `http://localhost:3000/refresh`
 
 You should now be able to login through your OP. If you want to test the token refresh point the browser to the **http://localhost:3000/refresh** endpoint. The testbed relies on a session cookie (**session**) to be able to track the session. Session data is stored in the key-value-store.
 

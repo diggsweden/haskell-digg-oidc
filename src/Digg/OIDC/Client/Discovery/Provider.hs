@@ -63,11 +63,12 @@ data ProviderMetadata = ProviderMetadata
     providerTokenEndpoint                     :: Endpoint,          -- ^ The token endpoint
     providerRegistrationEndpoint              :: Maybe Endpoint,    -- ^ The registration endpoint
     providerScopesSupported                   :: Maybe Scope,       -- ^ The supported scopes
-    providerResponseModesSupported            :: Maybe [Text],            -- ^ The supported response modes
-    providerGrantTypesSupported               :: Maybe [Text],            -- ^ The supported grant types
+    providerResponseModesSupported            :: Maybe [Text],      -- ^ The supported response modes
+    providerGrantTypesSupported               :: Maybe [Text],      -- ^ The supported grant types
     providerACRValuesSupported                :: Maybe [Text],      -- ^ The supported ACR values
     providerUserinfoEndpoint                  :: Maybe Endpoint,    -- ^ The userinfo endpoint
     providerRevocationEndpoint                :: Maybe Endpoint,    -- ^ The revocation endpoint
+    providerEndSessionEndpoint                :: Maybe Endpoint,    -- ^ The end session endpoint
     providerJWKSUri                           :: Endpoint,          -- ^ The JWKS URI
     providerResponseTypesSupported            :: [Text],            -- ^ The supported response types
     providerSubjectTypesSupported             :: [Text],            -- ^ The supported subject types

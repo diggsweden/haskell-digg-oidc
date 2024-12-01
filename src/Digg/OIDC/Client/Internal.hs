@@ -21,6 +21,9 @@ import           Data.Text.Read      (decimal)
 import           Jose.Jwt            (Jwt)
 import           Prelude             hiding (exp)
 
+-- | Represents the response containing tokens from the OIDC provider.
+-- This data type is used to capture the tokens received after a successful
+-- authentication and authorization process.
 data TokensResponse = TokensResponse
   { tokensResponseAccessToken  :: !Jwt,               -- ^ The access token
     tokensResponseTokenType    :: !Text,              -- ^ The token type
