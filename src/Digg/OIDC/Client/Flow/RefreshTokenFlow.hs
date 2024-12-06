@@ -40,6 +40,7 @@ import           Network.HTTP.Client                 (Manager, Request (..),
                                                       httpLbs, requestFromURI,
                                                       urlEncodedBody)
 import           Prelude                             hiding (exp)
+import Data.Void (vacuous)
 
 -- | Refreshes the token using the refresh token flow.
 --
@@ -55,13 +56,15 @@ refreshToken storage sid mgr oidc = do
   -- Verify that the provider supports authorization code grant type
   unless (isAnElementOf "refresh_token" (providerGrantTypesSupported (metadata $ oidcProvider oidc))) $ throwM $ UnsupportedOperation "Refresh token grant type not supported"
 
-  session <- sessionStoreGet storage sid
-  session' <- verifySession session
-  tr <- liftIO $ callTokenEndpoint (sessionCode session') (sessionRefreshToken session')
+  -- Get the session from the storage and verify it
+  session <- sessionStoreGet storage sid >>= verifySession
+
+  -- Call the token endpoint to refresh the tokens
+  tr <- liftIO $ callTokenEndpoint (sessionCode session) (sessionRefreshToken session)
 
   -- Validate the ID token
   claims <- validateToken oidc $ tokensResponseIdToken tr
-  liftIO $ validateIdClaims (providerIssuer . metadata $ oidcProvider oidc) (oidcClientId oidc) (sessionNonce session') claims
+  liftIO $ validateIdClaims (providerIssuer . metadata $ oidcProvider oidc) (oidcClientId oidc) (sessionNonce session) claims
 
   -- Validate the access token
   claimsA :: (TokenClaims NoExtraClaims) <- validateToken oidc $ tokensResponseAccessToken tr
@@ -69,7 +72,7 @@ refreshToken storage sid mgr oidc = do
 
   -- Update the session with the new tokens
   sessionStoreSave storage sid $
-    session'
+    session
       { sessionNonce = Nothing,
         sessionState = "",
         sessionAccessToken = Just $ unJwt $ tokensResponseAccessToken tr,

@@ -8,6 +8,7 @@
 --    Provides functionality for storing OIDC session data in Redis.
 module Digg.OIDC.Client.Storage.RedisStore (redisStorage) where
 
+import           Control.Monad            (void)
 import qualified Data.Aeson               as A
 import           Data.ByteString          (fromStrict, toStrict)
 import           Database.Redis           (Connection, del, expire, get,
@@ -49,6 +50,5 @@ redisStorage conn =
         Right Nothing  -> return Nothing
 
     sessionDelete :: SessionId -> IO ()
-    sessionDelete sid = do
-      _ <- runRedis conn $ del [sid]
-      return ()
+    sessionDelete sid = void $ runRedis conn $ del [sid]
+

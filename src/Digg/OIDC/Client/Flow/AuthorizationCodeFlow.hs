@@ -53,17 +53,26 @@ createAuthorizationRequestURL :: (MonadCatch m) => OIDC -- ^ The OIDC configurat
 createAuthorizationRequestURL oidc scope state nonce extra = do
   authenticationURL
   where
+
+    -- | Generates the authentication URL for the authorization code flow.
+    -- This URL is used to redirect the user to the authorization server
+    -- where they can authenticate and authorize the client application.
     authenticationURL :: (MonadCatch m) => m URI
     authenticationURL = do
       req <- requestFromURI endpoint
       return $ getUri $ setQueryString query req
 
+    -- | The endpoint URI for the authorization code flow.
     endpoint :: URI
     endpoint = uri $ providerAuthorizationEndpoint $ metadata $ oidcProvider oidc
 
+    -- | 'query' represents the parameters used in the authorization code flow
     query :: Parameters
     query = base <> maybe [] (\s -> [("state", Just s)]) state <> maybe [] (\n -> [("nonce", Just n)]) nonce <> extra
 
+    -- | 'base' represents the base parameters used in the Authorization Code Flow
+    --   for the OIDC (OpenID Connect) client. These parameters are essential for
+    --   initiating the authorization request and handling the response.
     base :: Parameters
     base =
       [ ("response_type", Just "code"),
@@ -119,13 +128,14 @@ authorizationGranted storage sid mgr oidc state code = do
   unless (isAnElementOf "authorization_code" (providerGrantTypesSupported (metadata $ oidcProvider oidc))) $ throwM $ UnsupportedOperation "Authorization code grant not supported by OP"
 
   -- Verify the session
-  session <- sessionStoreGet storage sid
-  session' <- verifySession session
+  session <- sessionStoreGet storage sid >>= verifySession
+
+  -- Exchange code with tokens
   tr <- liftIO callTokenEndpoint
 
   -- Validate the ID token
   claims <- T.validateToken oidc $ tokensResponseIdToken tr
-  liftIO $ T.validateIdClaims (providerIssuer . metadata $ oidcProvider oidc) (oidcClientId oidc) (sessionNonce session') claims
+  liftIO $ T.validateIdClaims (providerIssuer . metadata $ oidcProvider oidc) (oidcClientId oidc) (sessionNonce session) claims
 
   -- Validate the access token
   claimsA::(T.TokenClaims T.NoExtraClaims) <- T.validateToken oidc $ tokensResponseAccessToken tr
@@ -133,7 +143,7 @@ authorizationGranted storage sid mgr oidc state code = do
 
   -- Update the session
   sessionStoreSave storage sid $
-    session'
+    session
       {
         sessionNonce = Nothing,
         sessionState = "",
@@ -146,6 +156,8 @@ authorizationGranted storage sid mgr oidc state code = do
   return claims
   where
 
+    -- | Verifies the given session. If the session is 'Nothing', it throws an error.
+    -- If the session is 'Just', it returns the session.
     verifySession :: (MonadIO m, MonadThrow m) => Maybe Session -> m Session
     verifySession Nothing = do
       throwM $ InvalidState "No session found"
@@ -158,6 +170,9 @@ authorizationGranted storage sid mgr oidc state code = do
       when (isJust (sessionCode s)) $ throwM $ InvalidState "Code already exists"
       return s
 
+    -- | Calls the token endpoint to exchange an authorization code for tokens.
+    -- This function performs an HTTP request to the token endpoint and returns
+    -- the response containing the tokens.
     callTokenEndpoint :: IO TokensResponse
     callTokenEndpoint = do
         req <- requestFromURI endpoint
@@ -168,8 +183,11 @@ authorizationGranted storage sid mgr oidc state code = do
             when (tokensResponseTokenType tr /= "Bearer") $ throwM $ ValidationException $ "Invalid token type " <> tokensResponseTokenType tr
             return tr
 
+    -- | Retrieves the token endpoint URI from the OIDC provider metadata.
+    -- This endpoint is used to exchange the authorization code for an access token.
     endpoint = uri $ providerTokenEndpoint $ metadata $ oidcProvider oidc
 
+    -- | The base parameters for the authorization code flow.
     base     =
       [ ("grant_type",    "authorization_code")
       , ("code",          code)

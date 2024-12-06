@@ -50,9 +50,7 @@ discover :: Issuer  -- ^ The issuer location, the well-known openid configuratio
   -> Manager                -- ^ The HTTP manager to use for the requests
   -> IO Provider            -- ^ The discovered provider configuration
 discover issuer manager = do
-  provider <- catch discoverCall discoverError
-  validateProvider provider
-  return provider
+  catch discoverCall discoverError >>= validateProvider
   where
     discoverCall :: IO Provider
     discoverCall = do
@@ -66,8 +64,7 @@ discover issuer manager = do
 
     getMetadata :: Issuer -> IO ProviderMetadata
     getMetadata loc = do
-      req <- createDiscoveryRequest loc
-      res <- httpLbs req manager
+      res <- createDiscoveryRequest loc >>= flip httpLbs manager
       case statusCode (responseStatus res) of
         200 -> do
           case eitherDecode $ responseBody res of
@@ -80,13 +77,13 @@ discover issuer manager = do
 
     getJWKS :: Endpoint -> IO [Jwk]
     getJWKS ep = do
-      req <- createJWKSRequest ep
-      res <- httpLbs req manager
+      res <- createJWKSRequest ep >>= flip httpLbs manager
       case keys <$> eitherDecode (responseBody res) of
         Right ks -> return ks
         Left err -> throwM $ DiscoveryException $ "Failed to parse JWKS JSON response, error: " <> pack err
 
-    validateProvider :: Provider -> IO ()
+    validateProvider :: Provider -> IO Provider
     validateProvider provider = do
       let md = metadata provider
       when (providerIssuer md /= issuer) $ throwM $ DiscoveryException "Issuer value do not match configuration"
+      return provider
