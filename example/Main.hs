@@ -23,7 +23,7 @@ import Data.Maybe (fromMaybe)
 import Data.Text (Text)
 import Data.Text.Encoding (encodeUtf8, decodeUtf8)
 import Data.Text.Lazy (fromStrict, pack, toStrict)
-import Data.Time.Clock (secondsToDiffTime, secondsToNominalDiffTime)
+import Data.Time.Clock (secondsToDiffTime)
 import Data.Tuple (swap)
 import Database.Redis (ConnectInfo (..), checkedConnect, defaultConnectInfo)
 import Digg.OIDC.Client (OIDC, createOIDC)
@@ -52,6 +52,7 @@ import Web.Scotty.Cookie (SetCookie (..), defaultSetCookie, getCookie, sameSiteL
 import Web.Scotty.Trans (ScottyT, get, html, middleware, post, queryParam, redirect, scottyT, status, text)
 import Control.Exception (throwIO)
 import Text.Pretty.Simple (pPrint)
+import Digg.OIDC.Client.Session (getAccessToken)
 
 --
 -- Redis connection information
@@ -200,6 +201,17 @@ run' = do
           (redirect . pack . show)
           muri
 
+  get "/fetch" $ do
+    sid <- getCookie cookieName
+    case sid of
+      Just s -> do
+        AuthServerEnv {..} <- lift ask
+
+        token <- liftIO $ catch (getAccessToken storage (encodeUtf8 s)) noValue
+
+        blaze $ htmlAccessToken token
+      Nothing -> status404 "No current ongoing session found"
+
   -- | Handler for the logout callback endpoint.
   -- This route is triggered after a user logs out and the OIDC provider
   -- redirects back to the application. It processes the logout callback
@@ -275,6 +287,12 @@ run' = do
       H.h1 "Result"
       H.p $ H.text "This page contains the result of the login or refresh flow. For now it only displays the ID token claims or any errors."
       H.pre . H.toHtml . show $ bool
+
+    htmlAccessToken :: Maybe ByteString -> Html
+    htmlAccessToken t = do
+      H.h1 "Result"
+      H.p $ H.text "This page contains the access token."
+      H.pre . H.toHtml . show $ t
 
     htmlLogin = do
       H.h1 "Login"

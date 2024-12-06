@@ -11,16 +11,21 @@
 --    Stability: experimental
 --
 --   Defines the Session, SessionId, and SessionStore types for managing OIDC sessions.
-module Digg.OIDC.Client.Session (Session (..), SessionId, SessionStorage (..)) where
+module Digg.OIDC.Client.Session (Session (..), SessionId, SessionStorage (..), getAccessToken) where
 
-import           Data.Aeson         (FromJSON (..), ToJSON (..), Value (..),
-                                     object, (.:?), (.=))
-import           Data.Aeson.Types   (Parser, prependFailure, typeMismatch)
-import           Data.ByteString    (ByteString)
-import           Data.Text          (Text)
-import           Data.Text.Encoding (decodeUtf8, encodeUtf8)
-import           Digg.OIDC.Types    (Code, Nonce, State)
-import           GHC.Generics       (Generic)
+import           Control.Monad          (when)
+import           Control.Monad.Catch    (MonadCatch, MonadThrow (throwM))
+import           Control.Monad.IO.Class (MonadIO)
+import           Data.Aeson             (FromJSON (..), ToJSON (..), Value (..),
+                                         object, (.:?), (.=))
+import           Data.Aeson.Types       (Parser, prependFailure, typeMismatch)
+import           Data.ByteString        (ByteString)
+import           Data.Maybe             (isJust, isNothing)
+import           Data.Text              (Text)
+import           Data.Text.Encoding     (decodeUtf8, encodeUtf8)
+import           Digg.OIDC.Client       (OIDCException (InvalidState))
+import           Digg.OIDC.Types        (Code, Nonce, State)
+import           GHC.Generics           (Generic)
 
 -- | The 'Session' data type represents a user session in the OIDC (OpenID Connect) context.
 -- It is used to store and manage session-related information for authenticated users or users
@@ -73,3 +78,27 @@ data SessionStorage m = SessionStorage
     sessionStoreGet      :: SessionId -> m (Maybe Session),   -- ^ Retrieves a session with the given identifier
     sessionStoreDelete   :: SessionId -> m ()                 -- ^ Deletes a session with the given identifier
   }
+
+-- | Retrieves the access token from the session storage.
+getAccessToken :: (MonadIO m, MonadCatch m) => SessionStorage m  -- ^ The session storage
+  -> SessionId      -- ^ The session identifier
+  -> m (Maybe ByteString)   -- ^ The logout request URL to redirect to
+getAccessToken storage sid = do
+
+      -- Verify the session
+      session <- sessionStoreGet storage sid >>= verifySession
+
+      return $ sessionAccessToken session
+
+    where
+
+      -- | Verifies the given session. If the session is 'Nothing', it throws an error.
+      -- If the session is 'Just', it returns the session if it is valid for this operation.
+      verifySession :: (MonadIO m, MonadThrow m) => Maybe Session -> m Session
+      verifySession Nothing = do
+        throwM $ InvalidState "No session found"
+      verifySession (Just s) = do
+        when (isJust (sessionState s)) $ throwM $ InvalidState "State should be empty"
+        when (isJust (sessionNonce s)) $ throwM $ InvalidState "Nonce should be empty"
+        when (isNothing (sessionAccessToken s)) $ throwM $ InvalidState "Missing access token"
+        return s
