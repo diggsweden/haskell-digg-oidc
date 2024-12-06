@@ -14,7 +14,7 @@
 module Digg.OIDC.Client.Session (Session (..), SessionId, SessionStorage (..)) where
 
 import           Data.Aeson         (FromJSON (..), ToJSON (..), Value (..),
-                                     object, (.:), (.:?), (.=))
+                                     object, (.:?), (.=))
 import           Data.Aeson.Types   (Parser, prependFailure, typeMismatch)
 import           Data.ByteString    (ByteString)
 import           Data.Text          (Text)
@@ -26,7 +26,7 @@ import           GHC.Generics       (Generic)
 -- It is used to store and manage session-related information for authenticated users or users
 -- undergoing authentication.
 data Session = Session
-  { sessionState        :: State,             -- ^ The state of the session, used during login flows
+  { sessionState        :: Maybe State,       -- ^ The state of the session, used during login and logout flows
     sessionNonce        :: Maybe Nonce,       -- ^ The nonce value of the session
     sessionAccessToken  :: Maybe ByteString,  -- ^ The access token of the session
     sessionIdToken      :: Maybe ByteString,  -- ^ The ID token of the session
@@ -39,7 +39,7 @@ instance ToJSON Session where
   toJSON :: Session -> Value
   toJSON Session {..} =
     object
-      [ "state" .= decodeUtf8 sessionState,
+      [ "state" .= (decodeUtf8 <$> sessionState),
         "nonce" .= (decodeUtf8 <$> sessionNonce),
         "accessToken" .= (decodeUtf8 <$> sessionAccessToken),
         "idToken" .= (decodeUtf8 <$> sessionIdToken),
@@ -53,7 +53,7 @@ textToByteString t = encodeUtf8 <$> t
 instance FromJSON Session where
   parseJSON :: Value -> Parser Session
   parseJSON (Object v) =
-    (Session . encodeUtf8 <$> (v .: "state"))
+    (Session . textToByteString <$> (v .:? "state"))
       <*> (textToByteString <$> (v .:? "nonce"))
       <*> (textToByteString <$> (v .:? "accessToken"))
       <*> (textToByteString <$> (v .:? "idToken"))

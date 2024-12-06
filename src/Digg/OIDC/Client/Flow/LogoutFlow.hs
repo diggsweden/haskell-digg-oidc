@@ -34,6 +34,7 @@ import           Network.HTTP.Client                 (getUri, requestFromURI,
 
 import           Network.URI                         (URI (..))
 import           Prelude                             hiding (exp)
+import Data.Functor (void)
 
 createLogoutRequestURL :: (MonadCatch m) => OIDC -- ^ The OIDC configuration
   -> Maybe State  -- ^ The state
@@ -88,14 +89,14 @@ initiateLogoutRequest storage sid oidc extra = do
     url <- createLogoutRequestURL oidc (Just state) (fromJust (sessionIdToken session)) extra
 
     -- Update the session with the new state
-    sessionStoreSave storage sid $ session { sessionState = state }
+    sessionStoreSave storage sid $ session { sessionState = Just state }
 
     return url
 
   where
 
     -- | Verifies the given session. If the session is 'Nothing', it throws an error.
-    -- If the session is 'Just', it returns the session.
+    -- If the session is 'Just', it returns the session if it is valid.
     verifySession :: (MonadIO m, MonadThrow m) => Maybe Session -> m Session
     verifySession Nothing = do
       throwM $ InvalidState "No session found"
@@ -114,23 +115,23 @@ logoutCompleted :: (MonadIO m, MonadCatch m) => SessionStorage m -- ^ The sessio
 logoutCompleted storage sid state = do
 
   -- Verify the session
-  _ <- sessionStoreGet storage sid >>= verifySession
+  void $ sessionStoreGet storage sid >>= verifySession
 
-  -- Update the session
+  -- Remove the session
   sessionStoreDelete storage sid
-
-  return ()
 
   where
 
+    -- | Verifies the given session. If the session is 'Nothing', it throws an error.
+    -- If the session is 'Just', it returns the session if it is valid.
     verifySession :: (MonadIO m, MonadThrow m) => Maybe Session -> m Session
     verifySession Nothing = do
       throwM $ InvalidState "No session found"
     verifySession (Just s) = do
-      when (sessionState s /= state) $ throwM $ InvalidState "State mismatch"
+      when (sessionState s /= Just state) $ throwM $ InvalidState "State mismatch"
       when (isNothing (sessionAccessToken s)) $ throwM $ InvalidState "Missing access token"
       when (isNothing (sessionIdToken s)) $ throwM $ InvalidState "Missing ID token"
       when (isNothing (sessionRefreshToken s)) $ throwM $ InvalidState "Missing refresh token"
-      when (isJust (sessionNonce s)) $ throwM $ InvalidState "Invalid state, nonce should be empty"
+      when (isJust (sessionNonce s)) $ throwM $ InvalidState "Nonce should be empty"
       when (isNothing (sessionCode s)) $ throwM $ InvalidState "Missing authorization code"
       return s

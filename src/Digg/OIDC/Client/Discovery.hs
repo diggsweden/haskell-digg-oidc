@@ -14,7 +14,7 @@ module Digg.OIDC.Client.Discovery (discover) where
 import           Control.Monad.Catch                 (MonadThrow (throwM),
                                                       catch)
 import           Data.Aeson                          (eitherDecode)
-import           Data.Text                           (pack, Text, unpack)
+import           Data.Text                           (Text, pack, unpack)
 import           Digg.OIDC.Client                    (OIDCException (..))
 import           Digg.OIDC.Client.Discovery.Provider (Provider (..),
                                                       ProviderMetadata (..))
@@ -23,21 +23,24 @@ import           Digg.OIDC.Types                     (Address (..), Endpoint,
 import           Jose.Jwk                            (Jwk, keys)
 import           Network.HTTP.Client                 (HttpException, Manager,
                                                       Request, httpLbs,
+                                                      parseRequest,
                                                       requestFromURI,
                                                       responseBody,
-                                                      responseStatus,
-                                                      parseRequest)
+                                                      responseStatus)
 import           Network.HTTP.Types.Status           (Status (..))
 
-import Control.Monad (when)
+import           Control.Monad                       (when)
 
+-- | The URI for the well-known OpenID Connect discovery endpoint.
 wellKnownURI :: Text
 wellKnownURI = "/.well-known/openid-configuration"
 
+-- | Creates a discovery request for the given OIDC issuer.
 createDiscoveryRequest :: (MonadThrow m) => Issuer -> m Request
 createDiscoveryRequest location = do
   parseRequest $ unpack $ location <> wellKnownURI
 
+-- | Creates a JSON Web Key Set (JWKS) request for the given endpoint.
 createJWKSRequest :: (MonadThrow m) => Endpoint -> m Request
 createJWKSRequest location = do
   requestFromURI $ uri location
@@ -52,16 +55,22 @@ discover :: Issuer  -- ^ The issuer location, the well-known openid configuratio
 discover issuer manager = do
   catch discoverCall discoverError >>= validateProvider
   where
+
+    -- | Makes a discovery call to the OIDC provider to retrieve its configuration.
+    -- This function performs an IO action that returns a 'Provider' containing
+    -- the provider's metadata.
     discoverCall :: IO Provider
     discoverCall = do
       md <- getMetadata issuer
       p <- getJWKS $ providerJWKSUri md
       return $ Provider md p
 
+    -- | Handles HTTP exceptions that occur during the discovery process.
     discoverError :: (MonadThrow m) => HttpException -> m Provider
     discoverError e = do
       throwM $ BackendHTTPException e
 
+    -- | Retrieves the OpenID Connect provider metadata for a given issuer.
     getMetadata :: Issuer -> IO ProviderMetadata
     getMetadata loc = do
       res <- createDiscoveryRequest loc >>= flip httpLbs manager
@@ -75,6 +84,7 @@ discover issuer manager = do
         n -> do
           throwM $ DiscoveryException $ "Well-known endpoint retuned HTTP Code " <> pack (show n)
 
+    -- | Fetches the JSON Web Key Set (JWKS) from the given endpoint.
     getJWKS :: Endpoint -> IO [Jwk]
     getJWKS ep = do
       res <- createJWKSRequest ep >>= flip httpLbs manager
@@ -82,6 +92,7 @@ discover issuer manager = do
         Right ks -> return ks
         Left err -> throwM $ DiscoveryException $ "Failed to parse JWKS JSON response, error: " <> pack err
 
+    -- | Validates the given OIDC provider.
     validateProvider :: Provider -> IO Provider
     validateProvider provider = do
       let md = metadata provider

@@ -103,7 +103,7 @@ initiateAuthorizationRequest storage sid oidc scope extra = do
   n <- sessionStoreGenerate storage
   sessionStoreSave storage sid $
     Session
-      { sessionState = s,
+      { sessionState = Just s,
         sessionNonce = Just n,
         sessionAccessToken = Nothing,
         sessionIdToken = Nothing,
@@ -146,7 +146,7 @@ authorizationGranted storage sid mgr oidc state code = do
     session
       {
         sessionNonce = Nothing,
-        sessionState = "",
+        sessionState = Nothing,
         sessionAccessToken = Just $ unJwt $ tokensResponseAccessToken tr,
         sessionIdToken = Just $ unJwt $ tokensResponseIdToken tr,
         sessionRefreshToken = unJwt <$> tokensResponseRefreshToken tr,
@@ -162,7 +162,7 @@ authorizationGranted storage sid mgr oidc state code = do
     verifySession Nothing = do
       throwM $ InvalidState "No session found"
     verifySession (Just s) = do
-      when (sessionState s /= state) $ throwM $ InvalidState "Invalid state"
+      when (sessionState s /= Just state) $ throwM $ InvalidState "Invalid state"
       when (isJust (sessionAccessToken s)) $ throwM $ InvalidState "Access token already exists"
       when (isJust (sessionIdToken s)) $ throwM $ InvalidState "ID token already exists"
       when (isJust (sessionRefreshToken s)) $ throwM $ InvalidState "Refresh token already exists"

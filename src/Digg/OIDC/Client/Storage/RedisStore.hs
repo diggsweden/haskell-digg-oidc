@@ -34,6 +34,8 @@ redisStorage conn =
       sessionStoreDelete = sessionDelete
     }
   where
+
+    -- | Saves a session in the Redis store.
     sessionSave :: SessionId -> Session -> IO ()
     sessionSave sid ses = do
       _ <- runRedis conn $ do
@@ -41,6 +43,7 @@ redisStorage conn =
         expire sid 600
       return ()
 
+    -- | Retrieves a session from the Redis store based on the given session ID.
     sessionGet :: SessionId -> IO (Maybe Session)
     sessionGet sid = do
       res <- runRedis conn $ get sid
@@ -49,6 +52,7 @@ redisStorage conn =
         Right (Just v) -> return $ A.decode (fromStrict v)
         Right Nothing  -> return Nothing
 
+    -- | Deletes a session from the Redis store.
     sessionDelete :: SessionId -> IO ()
     sessionDelete sid = void $ runRedis conn $ del [sid]
 

@@ -40,7 +40,6 @@ import           Network.HTTP.Client                 (Manager, Request (..),
                                                       httpLbs, requestFromURI,
                                                       urlEncodedBody)
 import           Prelude                             hiding (exp)
-import Data.Void (vacuous)
 
 -- | Refreshes the token using the refresh token flow.
 --
@@ -74,7 +73,7 @@ refreshToken storage sid mgr oidc = do
   sessionStoreSave storage sid $
     session
       { sessionNonce = Nothing,
-        sessionState = "",
+        sessionState = Nothing,
         sessionAccessToken = Just $ unJwt $ tokensResponseAccessToken tr,
         sessionIdToken = Just $ unJwt $ tokensResponseIdToken tr,
         sessionRefreshToken = unJwt <$> tokensResponseRefreshToken tr
@@ -84,17 +83,20 @@ refreshToken storage sid mgr oidc = do
 
   where
 
+    -- | Verifies the given session. If the session is 'Nothing', it throws an error.
+    -- If the session is 'Just', it returns the session if it is valid.
     verifySession :: (MonadIO m, MonadThrow m) => Maybe Session -> m Session
     verifySession Nothing = do
       throwM $ InvalidState "No session found in storage"
     verifySession (Just s) = do
-      when (sessionState s /= "") $ throwM $ InvalidState "State should be empty"
+      when (isJust (sessionState s)) $ throwM $ InvalidState "State should be empty"
       when (isNothing (sessionAccessToken s)) $ throwM $ InvalidState "No access token, wrong state"
       when (isNothing (sessionRefreshToken s)) $ throwM $ InvalidState "No refreshtoken, wrong state"
       when (isJust (sessionNonce s)) $ throwM $ InvalidState "Nonce should be empty, wrong state"
       when (isNothing (sessionCode s)) $ throwM $ InvalidState "Missing code, wrong state"
       return s
 
+    -- | Calls the token endpoint to refresh the tokens.
     callTokenEndpoint :: Maybe Code -> Maybe B.ByteString -> IO TokensResponse
     callTokenEndpoint code rt = do
       req <- requestFromURI endpoint
@@ -105,8 +107,12 @@ refreshToken storage sid mgr oidc = do
           when (tokensResponseTokenType tr /= "Bearer") $ throwM $ ValidationException $ "Invalid token type " <> tokensResponseTokenType tr
           return tr
 
+
+    -- | Constructs the endpoint URI for the token endpoint of the OIDC provider.
     endpoint = uri $ providerTokenEndpoint $ metadata $ oidcProvider oidc
 
+    -- | The 'base' function takes a 'rt' (refresh token) and performs the necessary
+    -- operations to refresh the token.
     base code rt =
       [ ("grant_type", "refresh_token"),
         ("code", fromJust code),
