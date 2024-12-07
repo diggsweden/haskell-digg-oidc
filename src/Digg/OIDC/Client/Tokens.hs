@@ -154,10 +154,10 @@ validateIdClaims issuer client n claims = do
         $ throwM $ ValidationException $ "Our client \"" <> client <> "\" isn't contained in the token's audience " <> (pack . show) (aud claims)
 
     unless (now < exp claims)
-        $ throwM $ ValidationException "Received token has expired"
+        $ throwM $ ValidationException "Received idtoken has expired"
 
     unless (nonce claims == n)
-        $ throwM $ ValidationException "Inconsistent nonce"
+        $ throwM $ ValidationException "Nonce mismatch"
 
 -- | Validates the access token claims.
 -- 
@@ -186,7 +186,7 @@ validateAccessClaims issuer claims = do
     --    $ throwM $ ValidationException $ "our client \"" <> client <> "\" isn't contained in the token's audience " <> (pack . show) (aud claims)
 
     unless (now < exp claims)
-        $ throwM $ ValidationException "Received token has expired"
+        $ throwM $ ValidationException "Received accesstoken has expired"
 
 getCurrentIntDate :: IO IntDate
 getCurrentIntDate = IntDate <$> getPOSIXTime

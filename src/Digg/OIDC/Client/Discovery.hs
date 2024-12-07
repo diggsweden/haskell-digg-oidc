@@ -53,7 +53,7 @@ discover :: Issuer  -- ^ The issuer location, the well-known openid configuratio
   -> Manager                -- ^ The HTTP manager to use for the requests
   -> IO Provider            -- ^ The discovered provider configuration
 discover issuer manager = do
-  catch discoverCall discoverError >>= validateProvider
+    catch discoverCall discoverError >>= validateProvider
   where
 
     -- | Makes a discovery call to the OIDC provider to retrieve its configuration.

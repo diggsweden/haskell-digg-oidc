@@ -32,9 +32,9 @@ import           Digg.OIDC.Types                     (Address (..), Parameters,
 import           Network.HTTP.Client                 (getUri, requestFromURI,
                                                       setQueryString)
 
+import           Data.Functor                        (void)
 import           Network.URI                         (URI (..))
 import           Prelude                             hiding (exp)
-import Data.Functor (void)
 
 createLogoutRequestURL :: (MonadCatch m) => OIDC -- ^ The OIDC configuration
   -> Maybe State  -- ^ The state
@@ -42,7 +42,7 @@ createLogoutRequestURL :: (MonadCatch m) => OIDC -- ^ The OIDC configuration
   -> Parameters   -- ^ Extra parameters
   -> m URI        -- ^ The authorization request URL to redirect to
 createLogoutRequestURL oidc state idtoken extra = do
-  logoutURL
+    logoutURL
   where
 
     -- | Generates the logout URL for the OIDC client.
@@ -114,11 +114,11 @@ logoutCompleted :: (MonadIO m, MonadCatch m) => SessionStorage m -- ^ The sessio
   -> m ()
 logoutCompleted storage sid state = do
 
-  -- Verify the session
-  void $ sessionStoreGet storage sid >>= verifySession
+    -- Verify the session
+    void $ sessionStoreGet storage sid >>= verifySession
 
-  -- Remove the session
-  sessionStoreDelete storage sid
+    -- Remove the session
+    sessionStoreDelete storage sid
 
   where
 

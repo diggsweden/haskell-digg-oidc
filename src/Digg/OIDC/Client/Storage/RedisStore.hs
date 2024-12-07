@@ -27,12 +27,12 @@ import           Digg.OIDC.Client.Session (Session, SessionId,
 redisStorage :: Connection  -- ^ The Redis connection
   -> SessionStorage IO      -- ^ The initialized session store
 redisStorage conn =
-  SessionStorage
-    { sessionStoreGenerate = undefined,
-      sessionStoreSave = sessionSave,
-      sessionStoreGet = sessionGet,
-      sessionStoreDelete = sessionDelete
-    }
+    SessionStorage
+      { sessionStoreGenerate = undefined,
+        sessionStoreSave = sessionSave,
+        sessionStoreGet = sessionGet,
+        sessionStoreDelete = sessionDelete
+      }
   where
 
     -- | Saves a session in the Redis store.

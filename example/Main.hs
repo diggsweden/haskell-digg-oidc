@@ -1,6 +1,6 @@
-{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveGeneric     #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE RecordWildCards   #-}
 
 -- |  Module: Main
 --    Maintainer: tomas.stenlund@telia.com
@@ -9,50 +9,73 @@
 --    The module is a simple web server that uses the OIDC and OIDF client modules to authenticate users with an OpenID Connect provider.
 module Main (main) where
 
-import Control.Monad.Catch (Exception (displayException), catch)
-import Control.Monad.IO.Class (MonadIO, liftIO)
-import Control.Monad.Reader (ReaderT, ask, lift, runReaderT)
-import Crypto.Random (SystemDRG, getSystemDRG, randomBytesGenerate)
-import Data.Aeson (FromJSON)
-import Data.ByteString (ByteString)
-import qualified Data.ByteString.Base64 as B64
-import qualified Data.ByteString.Char8 as B
-import Data.IORef (IORef, atomicModifyIORef', newIORef)
-import qualified Data.List as L
-import Data.Maybe (fromMaybe)
-import Data.Text (Text)
-import Data.Text.Encoding (encodeUtf8, decodeUtf8)
-import Data.Text.Lazy (fromStrict, pack, toStrict)
-import Data.Time.Clock (secondsToDiffTime)
-import Data.Tuple (swap)
-import Database.Redis (ConnectInfo (..), checkedConnect, defaultConnectInfo)
-import Digg.OIDC.Client (OIDC, createOIDC)
-import Digg.OIDC.Client.Discovery (discover)
-import Digg.OIDC.Client.Discovery.Provider (metadata)
-import Digg.OIDC.Client.Flow.AuthorizationCodeFlow (authorizationGranted, initiateAuthorizationRequest)
-import Digg.OIDC.Client.Flow.LogoutFlow (initiateLogoutRequest, logoutCompleted)
-import Digg.OIDC.Client.Flow.RefreshTokenFlow (refreshToken)
-import Digg.OIDC.Client.Session (SessionStorage (..))
-import Digg.OIDC.Client.Storage.RedisStore (redisStorage)
-import Digg.OIDC.Client.Tokens (TokenClaims (..))
-import Digg.OIDC.Types (Issuer)
-import GHC.Exception.Type (SomeException)
-import GHC.Generics (Generic)
-import Network.HTTP.Client (Manager, newManager)
-import Network.HTTP.Client.TLS (tlsManagerSettings)
-import Network.HTTP.Types (badRequest400, notFound404, unauthorized401)
-import Network.Wai.Middleware.RequestLogger (logStdoutDev)
-import System.Environment (lookupEnv)
-import Text.Blaze.Html (Html)
-import Text.Blaze.Html.Renderer.Text (renderHtml)
-import Text.Blaze.Html5 ((!))
-import qualified Text.Blaze.Html5 as H
-import qualified Text.Blaze.Html5.Attributes as A
-import Web.Scotty.Cookie (SetCookie (..), defaultSetCookie, getCookie, sameSiteLax, setCookie)
-import Web.Scotty.Trans (ScottyT, get, html, middleware, post, queryParam, redirect, scottyT, status, text)
-import Control.Exception (throwIO)
-import Text.Pretty.Simple (pPrint)
-import Digg.OIDC.Client.Session (getAccessToken)
+import           Control.Exception                           (throwIO)
+import           Control.Monad.Catch                         (Exception (displayException),
+                                                              catch)
+import           Control.Monad.IO.Class                      (MonadIO, liftIO)
+import           Control.Monad.Reader                        (ReaderT, ask,
+                                                              lift, runReaderT)
+import           Crypto.Random                               (SystemDRG,
+                                                              getSystemDRG,
+                                                              randomBytesGenerate)
+import           Data.Aeson                                  (FromJSON)
+import           Data.ByteString                             (ByteString)
+import qualified Data.ByteString.Base64                      as B64
+import qualified Data.ByteString.Char8                       as B
+import           Data.IORef                                  (IORef,
+                                                              atomicModifyIORef',
+                                                              newIORef)
+import qualified Data.List                                   as L
+import           Data.Maybe                                  (fromMaybe)
+import           Data.Text                                   (Text)
+import           Data.Text.Encoding                          (decodeUtf8,
+                                                              encodeUtf8)
+import           Data.Text.Lazy                              (fromStrict, pack,
+                                                              toStrict)
+import           Data.Time.Clock                             (secondsToDiffTime)
+import           Data.Tuple                                  (swap)
+import           Database.Redis                              (ConnectInfo (..),
+                                                              checkedConnect,
+                                                              defaultConnectInfo)
+import           Digg.OIDC.Client                            (OIDC, createOIDC)
+import           Digg.OIDC.Client.Discovery                  (discover)
+import           Digg.OIDC.Client.Discovery.Provider         (metadata)
+import           Digg.OIDC.Client.Flow.AuthorizationCodeFlow (authorizationGranted,
+                                                              initiateAuthorizationRequest)
+import           Digg.OIDC.Client.Flow.LogoutFlow            (initiateLogoutRequest,
+                                                              logoutCompleted)
+import           Digg.OIDC.Client.Flow.RefreshTokenFlow      (refreshToken)
+import           Digg.OIDC.Client.Session                    (SessionStorage (..),
+                                                              getAccessToken, getIdClaims)
+import           Digg.OIDC.Client.Storage.RedisStore         (redisStorage)
+import           Digg.OIDC.Client.Tokens                     (TokenClaims (..))
+import           Digg.OIDC.Types                             (Issuer)
+import           GHC.Exception.Type                          (SomeException)
+import           GHC.Generics                                (Generic)
+import           Network.HTTP.Client                         (Manager,
+                                                              newManager)
+import           Network.HTTP.Client.TLS                     (tlsManagerSettings)
+import           Network.HTTP.Types                          (badRequest400,
+                                                              notFound404,
+                                                              unauthorized401)
+import           Network.Wai.Middleware.RequestLogger        (logStdoutDev)
+import           System.Environment                          (lookupEnv)
+import           Text.Blaze.Html                             (Html)
+import           Text.Blaze.Html.Renderer.Text               (renderHtml)
+import qualified Text.Blaze.Html5                            as H
+import           Text.Blaze.Html5                            ((!))
+import qualified Text.Blaze.Html5.Attributes                 as A
+import           Text.Pretty.Simple                          (pPrint)
+import           Web.Scotty.Cookie                           (SetCookie (..),
+                                                              defaultSetCookie,
+                                                              getCookie,
+                                                              sameSiteLax,
+                                                              setCookie)
+import           Web.Scotty.Trans                            (ScottyT, get,
+                                                              html, middleware,
+                                                              post, queryParam,
+                                                              redirect, scottyT,
+                                                              status, text)
 
 --
 -- Redis connection information
@@ -68,26 +91,26 @@ redisConnectInfo host = defaultConnectInfo {connectHost = host}
 -- This data type is used to encapsulate all necessary settings and parameters required
 -- for the example to operate correctly.
 data AuthServerEnv = AuthServerEnv
-  { issuer :: Issuer,     -- ^ The OIDC provider issuer location.
-    oidc :: OIDC,                 -- ^ The OIDC client configuration.
+  { issuer  :: Issuer,     -- ^ The OIDC provider issuer location.
+    oidc    :: OIDC,                 -- ^ The OIDC client configuration.
     storage :: SessionStorage IO, -- ^ The session storage.
-    sdrg :: IORef SystemDRG,      -- ^ The system DRG.
-    mgr :: Manager                -- ^ The HTTP client manager.
+    sdrg    :: IORef SystemDRG,      -- ^ The system DRG.
+    mgr     :: Manager                -- ^ The HTTP client manager.
   }
 
 -- | Type alias for the authentication server monad stack.
--- 
+--
 -- This type alias represents a ScottyT monad transformer stack
 -- with a ReaderT transformer that carries an 'AuthServerEnv' environment
 -- and runs in the 'IO' monad.
--- 
+--
 -- @type AuthServer a = ScottyT (ReaderT AuthServerEnv IO) a@
 type AuthServer a = ScottyT (ReaderT AuthServerEnv IO) a
 
 -- | 'ProfileClaims' represents the claims that we want in the IdToken returned from the OP when the user logs in
 -- or refreshes the tokens.
 newtype ProfileClaims = ProfileClaims
-  { 
+  {
     name :: Text  -- ^ The name of the user.
   }
   deriving (Show, Generic)
@@ -133,7 +156,7 @@ main = do
     handleIOError msg e = do
       liftIO $ print $ msg <> ": " <> displayException e
       throwIO e
-      
+
     getPort :: ByteString -> Int
     getPort bs = fromMaybe 3000 port
       where
@@ -188,7 +211,7 @@ run' = do
       Nothing -> do
         getCookie cookieName >>= doLoginCallback
 
-  -- | Handler for the logout route.
+  -- | Handler for the logout route. It initiates the RP initiated logout flow.
   get "/logout" $ do
     sid <- getCookie cookieName
     case sid of
@@ -201,15 +224,15 @@ run' = do
           (redirect . pack . show)
           muri
 
+  -- | Handler for the "/fetch" route. It returns the access token.
   get "/fetch" $ do
     sid <- getCookie cookieName
     case sid of
       Just s -> do
         AuthServerEnv {..} <- lift ask
-
         token <- liftIO $ catch (getAccessToken storage (encodeUtf8 s)) noValue
-
-        blaze $ htmlAccessToken token
+        idClaims <- liftIO $ catch (getIdClaims oidc storage (encodeUtf8 s)) noValue
+        blaze $ htmlFetch token idClaims
       Nothing -> status404 "No current ongoing session found"
 
   -- | Handler for the logout callback endpoint.
@@ -288,11 +311,15 @@ run' = do
       H.p $ H.text "This page contains the result of the login or refresh flow. For now it only displays the ID token claims or any errors."
       H.pre . H.toHtml . show $ bool
 
-    htmlAccessToken :: Maybe ByteString -> Html
-    htmlAccessToken t = do
+    htmlFetch :: Maybe ByteString -> Maybe (TokenClaims ProfileClaims) -> Html
+    htmlFetch t i = do
       H.h1 "Result"
-      H.p $ H.text "This page contains the access token."
+      H.p $ H.text "This page contains the access token and the id claims."
+      H.p $ H.text "Access token:"
       H.pre . H.toHtml . show $ t
+      H.p $ H.text "ID token claims:"
+      H.pre . H.toHtml . show $ i
+
 
     htmlLogin = do
       H.h1 "Login"

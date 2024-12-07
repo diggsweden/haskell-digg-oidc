@@ -51,7 +51,7 @@ createAuthorizationRequestURL :: (MonadCatch m) => OIDC -- ^ The OIDC configurat
   -> Parameters   -- ^ Extra parameters
   -> m URI        -- ^ The authorization request URL to redirect to
 createAuthorizationRequestURL oidc scope state nonce extra = do
-  authenticationURL
+    authenticationURL
   where
 
     -- | Generates the authentication URL for the authorization code flow.
@@ -124,36 +124,37 @@ authorizationGranted :: (MonadIO m, MonadCatch m, FromJSON a) => SessionStorage 
   -> m (T.TokenClaims a)
 authorizationGranted storage sid mgr oidc state code = do
 
-  -- Verify that the provider supports authorization code grant type
-  unless (isAnElementOf "authorization_code" (providerGrantTypesSupported (metadata $ oidcProvider oidc))) $ throwM $ UnsupportedOperation "Authorization code grant not supported by OP"
+    -- Verify that the provider supports authorization code grant type
+    unless (isAnElementOf "authorization_code" (providerGrantTypesSupported (metadata $ oidcProvider oidc))) $ throwM $ UnsupportedOperation "Authorization code grant not supported by OP"
 
-  -- Verify the session
-  session <- sessionStoreGet storage sid >>= verifySession
+    -- Verify the session
+    session <- sessionStoreGet storage sid >>= verifySession
 
-  -- Exchange code with tokens
-  tr <- liftIO callTokenEndpoint
+    -- Exchange code with tokens
+    tr <- liftIO callTokenEndpoint
 
-  -- Validate the ID token
-  claims <- T.validateToken oidc $ tokensResponseIdToken tr
-  liftIO $ T.validateIdClaims (providerIssuer . metadata $ oidcProvider oidc) (oidcClientId oidc) (sessionNonce session) claims
+    -- Validate the ID token
+    claims <- T.validateToken oidc $ tokensResponseIdToken tr
+    liftIO $ T.validateIdClaims (providerIssuer . metadata $ oidcProvider oidc) (oidcClientId oidc) (sessionNonce session) claims
 
-  -- Validate the access token
-  claimsA::(T.TokenClaims T.NoExtraClaims) <- T.validateToken oidc $ tokensResponseAccessToken tr
-  liftIO $ T.validateAccessClaims (providerIssuer . metadata $ oidcProvider oidc) claimsA
+    -- Validate the access token
+    claimsA::(T.TokenClaims T.NoExtraClaims) <- T.validateToken oidc $ tokensResponseAccessToken tr
+    liftIO $ T.validateAccessClaims (providerIssuer . metadata $ oidcProvider oidc) claimsA
 
-  -- Update the session
-  sessionStoreSave storage sid $
-    session
-      {
-        sessionNonce = Nothing,
-        sessionState = Nothing,
-        sessionAccessToken = Just $ unJwt $ tokensResponseAccessToken tr,
-        sessionIdToken = Just $ unJwt $ tokensResponseIdToken tr,
-        sessionRefreshToken = unJwt <$> tokensResponseRefreshToken tr,
-        sessionCode = Just code
-      }
+    -- Update the session
+    sessionStoreSave storage sid $
+      session
+        {
+          sessionNonce = Nothing,
+          sessionState = Nothing,
+          sessionAccessToken = Just $ unJwt $ tokensResponseAccessToken tr,
+          sessionIdToken = Just $ unJwt $ tokensResponseIdToken tr,
+          sessionRefreshToken = unJwt <$> tokensResponseRefreshToken tr,
+          sessionCode = Just code
+        }
 
-  return claims
+    return claims
+    
   where
 
     -- | Verifies the given session. If the session is 'Nothing', it throws an error.

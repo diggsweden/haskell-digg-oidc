@@ -52,34 +52,34 @@ refreshToken :: (MonadIO m, MonadCatch m, FromJSON a) => SessionStorage m   -- ^
   -> m (TokenClaims a) -- ^ The token claims
 refreshToken storage sid mgr oidc = do
 
-  -- Verify that the provider supports authorization code grant type
-  unless (isAnElementOf "refresh_token" (providerGrantTypesSupported (metadata $ oidcProvider oidc))) $ throwM $ UnsupportedOperation "Refresh token grant type not supported"
+    -- Verify that the provider supports authorization code grant type
+    unless (isAnElementOf "refresh_token" (providerGrantTypesSupported (metadata $ oidcProvider oidc))) $ throwM $ UnsupportedOperation "Refresh token grant type not supported"
 
-  -- Get the session from the storage and verify it
-  session <- sessionStoreGet storage sid >>= verifySession
+    -- Get the session from the storage and verify it
+    session <- sessionStoreGet storage sid >>= verifySession
 
-  -- Call the token endpoint to refresh the tokens
-  tr <- liftIO $ callTokenEndpoint (sessionCode session) (sessionRefreshToken session)
+    -- Call the token endpoint to refresh the tokens
+    tr <- liftIO $ callTokenEndpoint (sessionCode session) (sessionRefreshToken session)
 
-  -- Validate the ID token
-  claims <- validateToken oidc $ tokensResponseIdToken tr
-  liftIO $ validateIdClaims (providerIssuer . metadata $ oidcProvider oidc) (oidcClientId oidc) (sessionNonce session) claims
+    -- Validate the ID token
+    claims <- validateToken oidc $ tokensResponseIdToken tr
+    liftIO $ validateIdClaims (providerIssuer . metadata $ oidcProvider oidc) (oidcClientId oidc) (sessionNonce session) claims
 
-  -- Validate the access token
-  claimsA :: (TokenClaims NoExtraClaims) <- validateToken oidc $ tokensResponseAccessToken tr
-  liftIO $ validateAccessClaims (providerIssuer . metadata $ oidcProvider oidc) claimsA
+    -- Validate the access token
+    claimsA :: (TokenClaims NoExtraClaims) <- validateToken oidc $ tokensResponseAccessToken tr
+    liftIO $ validateAccessClaims (providerIssuer . metadata $ oidcProvider oidc) claimsA
 
-  -- Update the session with the new tokens
-  sessionStoreSave storage sid $
-    session
-      { sessionNonce = Nothing,
-        sessionState = Nothing,
-        sessionAccessToken = Just $ unJwt $ tokensResponseAccessToken tr,
-        sessionIdToken = Just $ unJwt $ tokensResponseIdToken tr,
-        sessionRefreshToken = unJwt <$> tokensResponseRefreshToken tr
-      }
+    -- Update the session with the new tokens
+    sessionStoreSave storage sid $
+      session
+        { sessionNonce = Nothing,
+          sessionState = Nothing,
+          sessionAccessToken = Just $ unJwt $ tokensResponseAccessToken tr,
+          sessionIdToken = Just $ unJwt $ tokensResponseIdToken tr,
+          sessionRefreshToken = unJwt <$> tokensResponseRefreshToken tr
+        }
 
-  return claims
+    return claims
 
   where
 
