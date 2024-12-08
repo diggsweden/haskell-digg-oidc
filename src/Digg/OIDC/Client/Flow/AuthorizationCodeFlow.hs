@@ -121,7 +121,7 @@ authorizationGranted :: (MonadIO m, MonadCatch m, FromJSON a) => SessionStorage 
   -> OIDC       -- ^ The OIDC configuration
   -> State      -- ^ The state
   -> Code       -- ^ The authorization code
-  -> m (T.TokenClaims a)
+  -> m (T.IdTokenClaims a)
 authorizationGranted storage sid mgr oidc state code = do
 
     -- Verify that the provider supports authorization code grant type
@@ -137,10 +137,6 @@ authorizationGranted storage sid mgr oidc state code = do
     claims <- T.validateToken oidc $ tokensResponseIdToken tr
     liftIO $ T.validateIdClaims (providerIssuer . metadata $ oidcProvider oidc) (oidcClientId oidc) (sessionNonce session) claims
 
-    -- Validate the access token
-    claimsA::(T.TokenClaims T.NoExtraClaims) <- T.validateToken oidc $ tokensResponseAccessToken tr
-    liftIO $ T.validateAccessClaims (providerIssuer . metadata $ oidcProvider oidc) claimsA
-
     -- Update the session
     sessionStoreSave storage sid $
       session
@@ -154,7 +150,7 @@ authorizationGranted storage sid mgr oidc state code = do
         }
 
     return claims
-    
+
   where
 
     -- | Verifies the given session. If the session is 'Nothing', it throws an error.

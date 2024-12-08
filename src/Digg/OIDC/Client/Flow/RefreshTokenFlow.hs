@@ -28,11 +28,9 @@ import           Digg.OIDC.Client.Discovery.Provider (Provider (..),
 import           Digg.OIDC.Client.Internal           (TokensResponse (..), isAnElementOf)
 import           Digg.OIDC.Client.Session            (Session (..), SessionId,
                                                       SessionStorage (..))
-import           Digg.OIDC.Client.Tokens             (NoExtraClaims,
-                                                      TokenClaims (..),
-                                                      validateAccessClaims,
-                                                      validateIdClaims,
-                                                      validateToken)
+import           Digg.OIDC.Client.Tokens             (validateIdClaims,
+                                                      validateToken,
+                                                      IdTokenClaims)
 import           Digg.OIDC.Types                     (Address (..), Code)
 import           Jose.Jwt                            (Jwt (..))
 import           Network.HTTP.Client                 (Manager, Request (..),
@@ -49,7 +47,7 @@ refreshToken :: (MonadIO m, MonadCatch m, FromJSON a) => SessionStorage m   -- ^
   -> SessionId -- ^ The session identifier to refresh
   -> Manager   -- ^ The HTTP manager
   -> OIDC      -- ^ The OIDC configuration
-  -> m (TokenClaims a) -- ^ The token claims
+  -> m (IdTokenClaims a) -- ^ The token claims
 refreshToken storage sid mgr oidc = do
 
     -- Verify that the provider supports authorization code grant type
@@ -64,10 +62,6 @@ refreshToken storage sid mgr oidc = do
     -- Validate the ID token
     claims <- validateToken oidc $ tokensResponseIdToken tr
     liftIO $ validateIdClaims (providerIssuer . metadata $ oidcProvider oidc) (oidcClientId oidc) (sessionNonce session) claims
-
-    -- Validate the access token
-    claimsA :: (TokenClaims NoExtraClaims) <- validateToken oidc $ tokensResponseAccessToken tr
-    liftIO $ validateAccessClaims (providerIssuer . metadata $ oidcProvider oidc) claimsA
 
     -- Update the session with the new tokens
     sessionStoreSave storage sid $

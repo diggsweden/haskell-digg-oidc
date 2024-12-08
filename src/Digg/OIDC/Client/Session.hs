@@ -24,7 +24,7 @@ import           Data.Maybe              (isJust, isNothing)
 import           Data.Text               (Text)
 import           Data.Text.Encoding      (decodeUtf8, encodeUtf8)
 import           Digg.OIDC.Client        (OIDC, OIDCException (InvalidState))
-import           Digg.OIDC.Client.Tokens (TokenClaims, validateToken)
+import           Digg.OIDC.Client.Tokens (validateToken, IdTokenClaims)
 import           Digg.OIDC.Types         (Code, Nonce, State)
 import           GHC.Generics            (Generic)
 import           Jose.Jwt                (Jwt (..))
@@ -115,7 +115,7 @@ getAccessToken storage sid = do
 getIdClaims :: (MonadIO m, MonadCatch m, FromJSON a) => OIDC
   -> SessionStorage m  -- ^ The session storage
   -> SessionId -- ^ The session identifier
-  -> m (Maybe (TokenClaims a))
+  -> m (Maybe (IdTokenClaims a))
 getIdClaims oidc storage sid = do
 
     -- Verify the session

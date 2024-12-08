@@ -18,6 +18,7 @@ import           Control.Monad.Reader                        (ReaderT, ask,
 import           Crypto.Random                               (SystemDRG,
                                                               getSystemDRG,
                                                               randomBytesGenerate)
+
 import           Data.Aeson                                  (FromJSON)
 import           Data.ByteString                             (ByteString)
 import qualified Data.ByteString.Base64                      as B64
@@ -46,9 +47,10 @@ import           Digg.OIDC.Client.Flow.LogoutFlow            (initiateLogoutRequ
                                                               logoutCompleted)
 import           Digg.OIDC.Client.Flow.RefreshTokenFlow      (refreshToken)
 import           Digg.OIDC.Client.Session                    (SessionStorage (..),
-                                                              getAccessToken, getIdClaims)
+                                                              getAccessToken,
+                                                              getIdClaims)
 import           Digg.OIDC.Client.Storage.RedisStore         (redisStorage)
-import           Digg.OIDC.Client.Tokens                     (TokenClaims (..))
+import           Digg.OIDC.Client.Tokens                     (IdTokenClaims)
 import           Digg.OIDC.Types                             (Issuer)
 import           GHC.Exception.Type                          (SomeException)
 import           GHC.Generics                                (Generic)
@@ -71,11 +73,11 @@ import           Web.Scotty.Cookie                           (SetCookie (..),
                                                               getCookie,
                                                               sameSiteLax,
                                                               setCookie)
-import           Web.Scotty.Trans                            (ScottyT, get,
+import           Web.Scotty.Trans                            (ScottyT, ActionT, get,
                                                               html, middleware,
                                                               post, queryParam,
                                                               redirect, scottyT,
-                                                              status, text)
+                                                              status, text, finish)
 
 --
 -- Redis connection information
@@ -195,7 +197,7 @@ run' = do
     AuthServerEnv {..} <- lift ask
     sid <- genSessionId sdrg
     setCookie $ createCookie sid
-    muri <- liftIO $ catch (Right <$> initiateAuthorizationRequest storage sid oidc [] []) handleError
+    muri <- liftIO $ catch (Right <$> initiateAuthorizationRequest storage sid oidc ["testbed"] []) handleError
     either
       (status400 . pack)
       (redirect . pack . show)
@@ -258,7 +260,25 @@ run' = do
         blaze $ htmlSuccess tokens
       Nothing -> status404 "No current ongoing session found"
 
+  -- \| Handler for the "/protected" route.
+  -- This route is protected and requires the user to be authenticated.
+  get "/protected" $ do
+    protect
+    blaze $ htmlPage "This is a protected route which you have access to."
+
   where
+
+    protect:: ActionT (ReaderT AuthServerEnv IO) ()
+    protect = do
+      sid <- getCookie cookieName
+      case sid of
+        Just s -> do
+          AuthServerEnv {..} <- lift ask
+          token <- liftIO $ catch (getAccessToken storage (encodeUtf8 s)) noValue
+          return ()
+        Nothing -> do
+          status401 "Unauthorized"
+          finish
 
     createCookie sid =
       defaultSetCookie
@@ -298,6 +318,11 @@ run' = do
           blaze $ htmlLoggedOut result
         Nothing -> status400 "Missing session information"
 
+    htmlPage :: String -> Html
+    htmlPage s = do
+      H.h1 "Result"
+      H.pre . H.toHtml $ s
+
     htmlLoggedOut :: Either String () -> Html
     htmlLoggedOut result = do
       H.h1 "Result"
@@ -305,13 +330,13 @@ run' = do
       H.pre . H.toHtml . show $ result
 
 
-    htmlSuccess :: Either String (TokenClaims ProfileClaims) -> Html
+    htmlSuccess :: Either String (IdTokenClaims ProfileClaims) -> Html
     htmlSuccess bool = do
       H.h1 "Result"
       H.p $ H.text "This page contains the result of the login or refresh flow. For now it only displays the ID token claims or any errors."
       H.pre . H.toHtml . show $ bool
 
-    htmlFetch :: Maybe ByteString -> Maybe (TokenClaims ProfileClaims) -> Html
+    htmlFetch :: Maybe ByteString -> Maybe (IdTokenClaims ProfileClaims) -> Html
     htmlFetch t i = do
       H.h1 "Result"
       H.p $ H.text "This page contains the access token and the id claims."

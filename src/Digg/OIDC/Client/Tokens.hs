@@ -12,11 +12,15 @@
 --    as custom claims.
 module Digg.OIDC.Client.Tokens
   ( Tokens (..),
-    TokenClaims (..),
+    Claims (..),
+    IdClaims (..),
+    AccessClaims (..),
     NoExtraClaims (..),
     validateToken,
     validateAccessClaims,
-    validateIdClaims
+    validateIdClaims,
+    IdTokenClaims,
+    AccessTokenClaims,
   )
 where
 
@@ -51,28 +55,74 @@ import Data.Time.Clock.POSIX (getPOSIXTime)
 -- | The 'TokenClaims' data type represents the claims contained within a token.
 -- The type parameter 'a' allows for flexibility in specifying additional claims.
 -- This can be used to define different kinds of tokens with varying claim structures.
-data TokenClaims a = TokenClaims
+data Claims a = Claims
   { iss         :: !Text,     -- ^ The issuer of the token
     sub         :: !Text,     -- ^ The subject of the token
     aud         :: ![Text],   -- ^ The audience of the token
     exp         :: !IntDate,  -- ^ The expiration time of the token
     iat         :: !IntDate,  -- ^ The time the token was issued
     jti         :: !Text,     -- ^ The JWT ID of the token
-    nonce       :: !(Maybe ByteString), -- ^ The nonce value of the token
-    otherClaims :: !(Maybe a)     -- ^ Additional claims of the token, defined by the user of this library
+
+    other_claims :: !a     -- ^ Additional claims of the token, defined by the user of this library
   }
   deriving (Show, Eq, Generic)
 
-instance (FromJSON a) => FromJSON (TokenClaims a) where
-  parseJSON = withObject "IdTokenClaims" $ \o ->
-    TokenClaims
+instance (FromJSON a) => FromJSON (Claims a) where
+  parseJSON = withObject "Claims" $ \o ->
+    Claims
       <$> o .: "iss"
       <*> o .: "sub"
       <*> (o .: "aud" <|> ((: []) <$> (o .: "aud")))
       <*> o .: "exp"
       <*> o .: "iat"
       <*> o .: "jti"
-      <*> (fmap encodeUtf8 <$> o .:? "nonce")
+      <*> parseJSON (Object o)
+
+-- | 'IdTokenClaims' represents the claims contained in an ID token.
+-- The type parameter 'a' allows for flexibility in the type of the claims.
+-- This data type is typically used in the context of OpenID Connect (OIDC)
+-- to hold the information about the authenticated user.
+data IdClaims a = IdClaims
+  {
+    id_nonce       :: !(Maybe ByteString),   -- ^ The nonce value of the token
+    id_auth_time   :: !(Maybe IntDate),      -- ^ The time the user authenticated
+    id_acr         :: !(Maybe Text),         -- ^ The authentication context class reference
+    id_amr         :: !(Maybe Text),         -- ^ The authentication methods used
+    id_azp         :: !(Maybe Text),         -- ^ The authorized party
+
+    id_other_claims :: !(Maybe a)           -- ^ Additional claims of the id token, defined by the user of this library
+
+  } deriving (Show, Eq, Generic)
+
+instance (FromJSON a) => FromJSON (IdClaims a) where
+  parseJSON = withObject "IdTokenClaims" $ \o ->
+    (IdClaims . fmap encodeUtf8 <$> (o .:? "nonce"))
+      <*> (fmap IntDate <$> (o .:? "auth_time"))
+      <*> o .:? "acr"
+      <*> o .:? "amr"
+      <*> o .:? "azp"
+      <*> optional (parseJSON (Object o))
+
+-- | 'AccessTokenClaims' represents the claims contained in an access token.
+-- The type parameter 'a' allows for flexibility in specifying the type of the claims.
+-- This data type is typically used in the context of OpenID Connect (OIDC) to
+-- handle and validate access tokens issued by an OIDC provider.
+data AccessClaims a = AccessClaims
+  {
+    a_scope             :: !(Maybe [Text]), -- ^ The scope of the token
+    a_auth_time   :: !(Maybe IntDate),      -- ^ The time the user authenticated
+    a_acr         :: !(Maybe Text),         -- ^ The authentication context class reference
+    a_amr         :: !(Maybe Text),         -- ^ The authentication methods used
+    a_other_claims :: !(Maybe a)     -- ^ Additional claims of the id token, defined by the user of this library
+  } deriving (Show, Eq, Generic)
+
+instance (FromJSON a) => FromJSON (AccessClaims a) where
+  parseJSON = withObject "IdTokenClaims" $ \o ->
+    AccessClaims
+      <$> optional (o .: "scope" <|> ((: []) <$> (o .: "scope")))
+      <*> (fmap IntDate <$> (o .:? "auth_time"))
+      <*> o .:? "acr"
+      <*> o .:? "amr"
       <*> optional (parseJSON (Object o))
 
 -- | 'NoExtraClaims' is a data type representing the absence of additional claims.
@@ -83,12 +133,15 @@ data NoExtraClaims = NoClaims
 
 instance FromJSON NoExtraClaims
 
+type IdTokenClaims a = Claims (IdClaims a)
+type AccessTokenClaims a = Claims (AccessClaims a)
+
 -- | The 'Tokens' data type represents a collection of tokens.
 -- The type parameter 'a' allows for flexibility for the identity token stored.
 data Tokens a = Tokens
   { accessToken  :: Text,           -- ^ The access token
     tokenType    :: Text,           -- ^ The token type, should always be Bearer
-    idToken      :: TokenClaims a,  -- ^ The identity tokens claims and its additional claims
+    idToken      :: Claims a,       -- ^ The identity tokens claims and its additional claims
     idTokenJwt   :: Jwt,            -- ^ The identity token as a JWT
     expiresIn    :: Maybe Integer,  -- ^ The expiration time of the token
     refreshToken :: Maybe Text      -- ^ The refresh token
@@ -102,7 +155,7 @@ data Tokens a = Tokens
 -- claims to be JSON-decodable.
 validateToken :: (MonadIO m, FromJSON a) => OIDC -- ^ The OIDC configuration
   -> Jwt -- ^ The JWT token to validate
-  -> m (TokenClaims a) -- ^ The token claims
+  -> m (Claims a) -- ^ The token claims
 validateToken oidc jwt' = do
   let jwks = jwkSet . oidcProvider $ oidc
       token = Jwt.unJwt jwt'
@@ -142,7 +195,8 @@ validateToken oidc jwt' = do
 validateIdClaims :: Text -- ^ The expected issuer
   -> Text         -- ^ The client ID (audience)
   -> Maybe Nonce  -- ^ The nonce value
-  -> TokenClaims a -> IO () -- ^ The token claims
+  -> IdTokenClaims a  -- ^ The token claims
+  -> IO ()            -- ^ Everything went well if we return, maybe we should return the claims for continuation purposes
 validateIdClaims issuer client n claims = do
 
     now <- getCurrentIntDate
@@ -156,7 +210,7 @@ validateIdClaims issuer client n claims = do
     unless (now < exp claims)
         $ throwM $ ValidationException "Received idtoken has expired"
 
-    unless (nonce claims == n)
+    unless (id_nonce (other_claims claims) == n)
         $ throwM $ ValidationException "Nonce mismatch"
 
 -- | Validates the access token claims.
@@ -170,20 +224,18 @@ validateIdClaims issuer client n claims = do
 --
 -- If not it throws a 'ValidationException'.
 validateAccessClaims :: Text  -- ^ The expected issuer
-  -> TokenClaims a            -- ^ The token claims
-  -> IO ()                    -- ^ The token claims 
-validateAccessClaims issuer claims = do
+  -> Text                    -- ^ The expected audience
+  -> AccessTokenClaims a            -- ^ The token claims
+  -> IO ()                    -- ^ Everything went well if we return, maybe we should return the claims for continuation purposes
+validateAccessClaims issuer audience claims = do
 
     now <- getCurrentIntDate
 
     unless (iss claims == issuer)
         $ throwM $ ValidationException $ "Issuer from token \"" <> iss claims <> "\" is different than expected issuer \"" <> issuer <> "\""
 
-    --
-    -- Which value should be in the audience for the accesstoken?
-    --
-    -- unless (client `elem` aud claims)
-    --    $ throwM $ ValidationException $ "our client \"" <> client <> "\" isn't contained in the token's audience " <> (pack . show) (aud claims)
+    unless (audience `elem` aud claims)
+      $ throwM $ ValidationException $ "our audience \"" <> audience <> "\" isn't contained in the token's audience " <> (pack . show) (aud claims)
 
     unless (now < exp claims)
         $ throwM $ ValidationException "Received accesstoken has expired"
