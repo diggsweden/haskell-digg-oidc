@@ -8,6 +8,17 @@ SPDX-License-Identifier: MIT
 
 This is a client testbed and demonstrator written in haskell for OpenID Connect and OpenID Federation. It can be used as a showcase or as a basis for learning OpenID Connect and Federation specifications and give various implementation hints. This is an ongoing project and by no means complete in support of the related standards.
 
+It contains the following routes:
+
+|Method|Route|Description|
+|------|-----|-----------|
+|GET|"/login"|Shows a simple login page|
+|POST|"/login"|Performs the login|
+|GET|"/login/callback"|The OIDC callback when the login sequence has finished|
+|GET|"/logout"|Performs the logout|
+|GET|"/logout/callback"|The OIDC callback when the logout sequence has finished|
+|GET|"/refresh"|Refreshes the tokens|
+|GET|"/protected"|Checks if you are logged in and display the status|
 
 Why Haskell? Haskell is a lazy, purely functional, statically typed language used in both academic and industrial settings and has been around quite a while. This testbed is to demonstrate the use of a functional language as an example for solutions and standards endorsed by the agency.
 

@@ -40,6 +40,7 @@ import           Network.HTTP.Client                 (Manager, Request (..),
                                                       urlEncodedBody)
 import           Network.URI                         (URI (..))
 import           Prelude                             hiding (exp)
+import Digg.OIDC.Client.Tokens (AccessTokenClaims)
 
 -- |  Creates the URL for the authorization request.
 --    This function constructs the URL that the client needs to redirect the user to in order to
@@ -136,6 +137,11 @@ authorizationGranted storage sid mgr oidc state code = do
     -- Validate the ID token
     claims <- T.validateToken oidc $ tokensResponseIdToken tr
     liftIO $ T.validateIdClaims (providerIssuer . metadata $ oidcProvider oidc) (oidcClientId oidc) (sessionNonce session) claims
+
+    -- Validate the ID token
+    claimsA::(AccessTokenClaims T.NoExtraClaims) <- T.validateToken oidc $ tokensResponseAccessToken tr
+    liftIO $ T.validateAccessClaims (providerIssuer . metadata $ oidcProvider oidc) (oidcClientId oidc) claimsA
+    liftIO $ print $ "Claims " <> show claimsA
 
     -- Update the session
     sessionStoreSave storage sid $

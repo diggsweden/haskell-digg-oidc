@@ -47,10 +47,14 @@ import           Digg.OIDC.Client.Flow.LogoutFlow            (initiateLogoutRequ
                                                               logoutCompleted)
 import           Digg.OIDC.Client.Flow.RefreshTokenFlow      (refreshToken)
 import           Digg.OIDC.Client.Session                    (SessionStorage (..),
+                                                              getAccessClaims,
                                                               getAccessToken,
-                                                              getIdClaims)
+                                                              getIdClaims,
+                                                              getIdToken)
 import           Digg.OIDC.Client.Storage.RedisStore         (redisStorage)
-import           Digg.OIDC.Client.Tokens                     (IdTokenClaims)
+import           Digg.OIDC.Client.Tokens                     (AccessTokenClaims,
+                                                              IdTokenClaims,
+                                                              NoExtraClaims)
 import           Digg.OIDC.Types                             (Issuer)
 import           GHC.Exception.Type                          (SomeException)
 import           GHC.Generics                                (Generic)
@@ -73,11 +77,12 @@ import           Web.Scotty.Cookie                           (SetCookie (..),
                                                               getCookie,
                                                               sameSiteLax,
                                                               setCookie)
-import           Web.Scotty.Trans                            (ScottyT, ActionT, get,
-                                                              html, middleware,
-                                                              post, queryParam,
+import           Web.Scotty.Trans                            (ActionT, ScottyT,
+                                                              finish, get, html,
+                                                              middleware, post,
+                                                              queryParam,
                                                               redirect, scottyT,
-                                                              status, text, finish)
+                                                              status, text)
 
 --
 -- Redis connection information
@@ -194,14 +199,7 @@ run' = do
   -- This route is responsible for processing user login requests and will generate
   -- an authorization request to the OP.
   post "/login" $ do
-    AuthServerEnv {..} <- lift ask
-    sid <- genSessionId sdrg
-    setCookie $ createCookie sid
-    muri <- liftIO $ catch (Right <$> initiateAuthorizationRequest storage sid oidc ["testbed"] []) handleError
-    either
-      (status400 . pack)
-      (redirect . pack . show)
-      muri
+    redirectToLogin
 
   -- \| Handler for the "/login/callback" route.
   -- This route is used as the callback URL for the OIDC login flow and will process
@@ -226,15 +224,17 @@ run' = do
           (redirect . pack . show)
           muri
 
-  -- | Handler for the "/fetch" route. It returns the access token.
+  -- | Handler for the "/fetch" route. It returns the id and access tokens and their claims
   get "/fetch" $ do
     sid <- getCookie cookieName
     case sid of
       Just s -> do
         AuthServerEnv {..} <- lift ask
         token <- liftIO $ catch (getAccessToken storage (encodeUtf8 s)) noValue
+        idtoken <- liftIO $ catch (getIdToken storage (encodeUtf8 s)) noValue
         idClaims <- liftIO $ catch (getIdClaims oidc storage (encodeUtf8 s)) noValue
-        blaze $ htmlFetch token idClaims
+        accessClaims <- liftIO $ catch (getAccessClaims oidc storage (encodeUtf8 s)) noValue
+        blaze $ htmlFetch token idtoken idClaims accessClaims
       Nothing -> status404 "No current ongoing session found"
 
   -- | Handler for the logout callback endpoint.
@@ -268,16 +268,31 @@ run' = do
 
   where
 
+    redirectToLogin :: ActionT (ReaderT AuthServerEnv IO) ()
+    redirectToLogin = do
+      AuthServerEnv {..} <- lift ask
+      sid <- genSessionId sdrg
+      setCookie $ createCookie sid
+      muri <- liftIO $ catch (Right <$> initiateAuthorizationRequest storage sid oidc ["testbed"] []) handleError
+      either
+        (status400 . pack)
+        (redirect . pack . show)
+        muri
+
     protect:: ActionT (ReaderT AuthServerEnv IO) ()
     protect = do
+      AuthServerEnv {..} <- lift ask
       sid <- getCookie cookieName
       case sid of
         Just s -> do
-          AuthServerEnv {..} <- lift ask
           token <- liftIO $ catch (getAccessToken storage (encodeUtf8 s)) noValue
-          return ()
+          case token of
+            Just _ -> return ()
+            Nothing -> do
+              redirectToLogin
+              finish
         Nothing -> do
-          status401 "Unauthorized"
+          redirectToLogin
           finish
 
     createCookie sid =
@@ -336,14 +351,21 @@ run' = do
       H.p $ H.text "This page contains the result of the login or refresh flow. For now it only displays the ID token claims or any errors."
       H.pre . H.toHtml . show $ bool
 
-    htmlFetch :: Maybe ByteString -> Maybe (IdTokenClaims ProfileClaims) -> Html
-    htmlFetch t i = do
+    htmlFetch :: Maybe ByteString -> Maybe ByteString
+      -> Maybe (IdTokenClaims ProfileClaims)
+      -> Maybe (AccessTokenClaims NoExtraClaims)
+      -> Html
+    htmlFetch t idt ic ac = do
       H.h1 "Result"
       H.p $ H.text "This page contains the access token and the id claims."
       H.p $ H.text "Access token:"
       H.pre . H.toHtml . show $ t
+      H.p $ H.text "Access token claims:"
+      H.pre . H.toHtml . show $ ac
+      H.p $ H.text "ID token:"
+      H.pre . H.toHtml . show $ idt
       H.p $ H.text "ID token claims:"
-      H.pre . H.toHtml . show $ i
+      H.pre . H.toHtml . show $ ic
 
 
     htmlLogin = do

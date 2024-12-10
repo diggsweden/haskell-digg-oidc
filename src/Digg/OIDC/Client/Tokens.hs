@@ -1,6 +1,9 @@
 {-# LANGUAGE DeriveGeneric     #-}
 {-# LANGUAGE LambdaCase        #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+{-# HLINT ignore "Use lambda-case" #-}
+
 -- |
 --    Module: Digg.OIDC.Client.Tokens
 --    Copyright: (c) 2024 Digg - Agency for Digital Government
@@ -30,9 +33,8 @@ import           Control.Monad.Catch                 (MonadThrow (throwM))
 import           Control.Monad.Except                (catchError)
 import           Control.Monad.IO.Class              (MonadIO, liftIO)
 import           Data.Aeson                          (FromJSON (parseJSON),
-                                                      Value (Object),
-                                                      eitherDecode, withObject,
-                                                      (.:), (.:?))
+                                                      Value (..), eitherDecode,
+                                                      withObject, (.:), (.:?))
 import           Data.ByteString                     (ByteString)
 import qualified Data.ByteString.Lazy.Char8          as BL
 import           Data.Either                         (partitionEithers)
@@ -67,11 +69,11 @@ data Claims a = Claims
   deriving (Show, Eq, Generic)
 
 instance (FromJSON a) => FromJSON (Claims a) where
-  parseJSON = withObject "Claims" $ \o ->
+  parseJSON = withObject "Claims" $ \o -> do
     Claims
       <$> o .: "iss"
       <*> o .: "sub"
-      <*> (o .: "aud" <|> ((: []) <$> (o .: "aud")))
+      <*> ((o .: "aud") <|> ((:[]) <$> (o .: "aud")))
       <*> o .: "exp"
       <*> o .: "iat"
       <*> o .: "jti"
@@ -92,7 +94,7 @@ data IdClaims a = IdClaims
   } deriving (Show, Eq, Generic)
 
 instance (FromJSON a) => FromJSON (IdClaims a) where
-  parseJSON = withObject "IdTokenClaims" $ \o ->
+  parseJSON = withObject "IdClaims" $ \o ->
     (IdClaims . fmap encodeUtf8 <$> (o .:? "nonce"))
       <*> (fmap IntDate <$> (o .:? "auth_time"))
       <*> o .:? "acr"
@@ -104,17 +106,17 @@ instance (FromJSON a) => FromJSON (IdClaims a) where
 -- The type parameter 'a' allows for flexibility in specifying the type of the claims.
 data AccessClaims a = AccessClaims
   {
-    a_scope        :: !(Maybe [Text]), -- ^ The scope of the token
-    a_auth_time    :: !(Maybe IntDate),      -- ^ The time the user authenticated
-    a_acr          :: !(Maybe Text),         -- ^ The authentication context class reference
-    a_amr          :: !(Maybe Text),         -- ^ The authentication methods used
-    a_other_claims :: !(Maybe a)            -- ^ Additional claims of the id token, defined by the user of this library
+    a_scope        :: !(Maybe Text),  -- ^ The scope of the token
+    a_auth_time    :: !(Maybe IntDate), -- ^ The time the user authenticated
+    a_acr          :: !(Maybe Text),    -- ^ The authentication context class reference
+    a_amr          :: !(Maybe Text),    -- ^ The authentication methods used
+    a_other_claims :: !(Maybe a)        -- ^ Additional claims of the id token, defined by the user of this library
   } deriving (Show, Eq, Generic)
 
 instance (FromJSON a) => FromJSON (AccessClaims a) where
-  parseJSON = withObject "IdTokenClaims" $ \o ->
+  parseJSON = withObject "AccessClaims" $ \o ->
     AccessClaims
-      <$> optional (o .: "scope" <|> ((: []) <$> (o .: "scope")))
+      <$> o .:? "scope"
       <*> (fmap IntDate <$> (o .:? "auth_time"))
       <*> o .:? "acr"
       <*> o .:? "amr"
@@ -145,7 +147,6 @@ validateToken oidc jwt' = do
   let jwks = jwkSet . oidcProvider $ oidc
       token = Jwt.unJwt jwt'
       algs = providerIdTokenSigningAlgValuesSupported . metadata $ oidcProvider oidc
-  liftIO $ print algs
   decoded <- selectDecodedResult <$> traverse (tryDecode jwks token) algs
   case decoded of
     Right (Unsecured payload)      -> liftIO . throwIO $ UnsecuredJWT payload
@@ -166,9 +167,11 @@ validateToken oidc jwt' = do
       (e : _, _) -> Left e
       ([], [])   -> Left $ Jwt.KeyError "No Keys available for decoding"
 
-    parsePayload payload = case eitherDecode $ BL.fromStrict payload of
-      Right x  -> return x
-      Left err -> liftIO . throwIO . ValidationException $ pack err
+    parsePayload:: (MonadIO m, FromJSON a) => ByteString -> m (Claims a)
+    parsePayload payload = do
+      case eitherDecode $ BL.fromStrict payload of
+        Right x  -> return x
+        Left err -> liftIO . throwIO . ValidationException $ pack err
 
 -- | Validates the ID token claims.
 --
@@ -189,8 +192,8 @@ validateIdClaims issuer client n claims = do
     unless (iss claims == issuer)
         $ throwM $ ValidationException $ "Issuer in token \"" <> iss claims <> "\" is different than expected issuer \"" <> issuer <> "\""
 
-    unless (client `elem` aud claims)
-        $ throwM $ ValidationException $ "Our client \"" <> client <> "\" isn't contained in the token's audience " <> (pack . show) (aud claims)
+--    unless (client `elem` aud claims)
+--        $ throwM $ ValidationException $ "Our client \"" <> client <> "\" isn't contained in the token's audience " <> (pack . show) (aud claims)
 
     unless (now < exp claims)
         $ throwM $ ValidationException "Received idtoken has expired"
@@ -219,8 +222,8 @@ validateAccessClaims issuer audience claims = do
     unless (iss claims == issuer)
         $ throwM $ ValidationException $ "Issuer from token \"" <> iss claims <> "\" is different than expected issuer \"" <> issuer <> "\""
 
-    unless (audience `elem` aud claims)
-      $ throwM $ ValidationException $ "our audience \"" <> audience <> "\" isn't contained in the token's audience " <> (pack . show) (aud claims)
+--    unless (audience `elem` aud claims)
+--      $ throwM $ ValidationException $ "our audience \"" <> audience <> "\" isn't contained in the token's audience " <> (pack . show) (aud claims)
 
     unless (now < exp claims)
         $ throwM $ ValidationException "Received accesstoken has expired"

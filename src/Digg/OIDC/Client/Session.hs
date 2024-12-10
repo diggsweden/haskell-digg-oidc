@@ -11,7 +11,7 @@
 --    Stability: experimental
 --
 --   Defines the Session, SessionId, and SessionStore types for managing OIDC sessions.
-module Digg.OIDC.Client.Session (Session (..), SessionId, SessionStorage (..), getAccessToken, getIdClaims) where
+module Digg.OIDC.Client.Session (Session (..), SessionId, SessionStorage (..), getAccessToken, getAccessClaims, getIdToken, getIdClaims) where
 
 import           Control.Monad           (when)
 import           Control.Monad.Catch     (MonadCatch, MonadThrow (throwM))
@@ -24,7 +24,8 @@ import           Data.Maybe              (isJust, isNothing)
 import           Data.Text               (Text)
 import           Data.Text.Encoding      (decodeUtf8, encodeUtf8)
 import           Digg.OIDC.Client        (OIDC, OIDCException (InvalidState))
-import           Digg.OIDC.Client.Tokens (IdTokenClaims, validateToken)
+import           Digg.OIDC.Client.Tokens (AccessTokenClaims, IdTokenClaims,
+                                          validateToken)
 import           Digg.OIDC.Types         (Code, Nonce, State)
 import           GHC.Generics            (Generic)
 import           Jose.Jwt                (Jwt (..))
@@ -105,13 +106,30 @@ getAccessToken storage sid = do
       when (isNothing (sessionAccessToken s)) $ throwM $ InvalidState "Missing access token"
       return s
 
--- | Validates the ID token claims.
---
--- This function checks the validity of the ID token claims based on the provided
--- issuer, audience, and optional nonce. It performs necessary checks to ensure
--- that the token is valid and has not been tampered with.
---
--- If not it throws a 'ValidationException'.
+-- | Retrieves the access token from the session storage.
+getIdToken :: (MonadIO m, MonadCatch m) => SessionStorage m  -- ^ The session storage
+  -> SessionId      -- ^ The session identifier
+  -> m (Maybe ByteString)   -- ^ The logout request URL to redirect to
+getIdToken storage sid = do
+
+    -- Verify the session
+    session <- sessionStoreGet storage sid >>= verifySession
+
+    return $ sessionIdToken session
+
+  where
+
+    -- | Verifies the given session. If the session is 'Nothing', it throws an error.
+    -- If the session is 'Just', it returns the session if it is valid for this operation.
+    verifySession :: (MonadIO m, MonadThrow m) => Maybe Session -> m Session
+    verifySession Nothing = do
+      throwM $ InvalidState "No session found"
+    verifySession (Just s) = do
+      when (isJust (sessionState s)) $ throwM $ InvalidState "State should be empty"
+      when (isJust (sessionNonce s)) $ throwM $ InvalidState "Nonce should be empty"
+      when (isNothing (sessionAccessToken s)) $ throwM $ InvalidState "Missing ID token"
+      return s
+
 getIdClaims :: (MonadIO m, MonadCatch m, FromJSON a) => OIDC
   -> SessionStorage m  -- ^ The session storage
   -> SessionId -- ^ The session identifier
@@ -136,4 +154,30 @@ getIdClaims oidc storage sid = do
       when (isJust (sessionState s)) $ throwM $ InvalidState "State should be empty"
       when (isJust (sessionNonce s)) $ throwM $ InvalidState "Nonce should be empty"
       when (isNothing (sessionIdToken s)) $ throwM $ InvalidState "Missing ID token"
+      return s
+
+getAccessClaims :: (MonadIO m, MonadCatch m, FromJSON a) => OIDC
+  -> SessionStorage m  -- ^ The session storage
+  -> SessionId -- ^ The session identifier
+  -> m (Maybe (AccessTokenClaims a))
+getAccessClaims oidc storage sid = do
+
+    -- Verify the session
+    session <- sessionStoreGet storage sid >>= verifySession
+
+    -- Validate the Access token and extract the claims
+    let jwt = Jwt <$> sessionAccessToken session
+    mapM (validateToken oidc) jwt
+
+  where
+
+    -- | Verifies the given session. If the session is 'Nothing', it throws an error.
+    -- If the session is 'Just', it returns the session if it is valid for this operation.
+    verifySession :: (MonadIO m, MonadThrow m) => Maybe Session -> m Session
+    verifySession Nothing = do
+      throwM $ InvalidState "No session found"
+    verifySession (Just s) = do
+      when (isJust (sessionState s)) $ throwM $ InvalidState "State should be empty"
+      when (isJust (sessionNonce s)) $ throwM $ InvalidState "Nonce should be empty"
+      when (isNothing (sessionAccessToken s)) $ throwM $ InvalidState "Missing Access token"
       return s
