@@ -31,7 +31,6 @@ import           Digg.OIDC.Client.Session            (Session (..), SessionId,
 import qualified Digg.OIDC.Client.Tokens             as T
 import           Digg.OIDC.Types                     (Address (..), Code, Nonce,
                                                       Parameters, Scope, State)
-import           Jose.Jwt                            (Jwt (..))
 import           Network.HTTP.Client                 (Manager, Request (..),
                                                       Response (responseBody),
                                                       getUri, httpLbs,
@@ -149,9 +148,9 @@ authorizationGranted storage sid mgr oidc state code = do
         {
           sessionNonce = Nothing,
           sessionState = Nothing,
-          sessionAccessToken = Just $ unJwt $ tokensResponseAccessToken tr,
-          sessionIdToken = Just $ unJwt $ tokensResponseIdToken tr,
-          sessionRefreshToken = unJwt <$> tokensResponseRefreshToken tr,
+          sessionAccessToken = Just $ tokensResponseAccessToken tr,
+          sessionIdToken = Just $ tokensResponseIdToken tr,
+          sessionRefreshToken = tokensResponseRefreshToken tr,
           sessionCode = Just code
         }
 

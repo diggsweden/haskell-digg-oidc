@@ -15,7 +15,6 @@ import           Control.Monad                       (when)
 import           Control.Monad.Catch                 (MonadCatch,
                                                       MonadThrow (throwM))
 import           Control.Monad.IO.Class              (MonadIO)
-import           Data.ByteString                     (ByteString)
 import           Data.Maybe                          (fromJust, isJust,
                                                       isNothing)
 import           Data.Text.Encoding                  (encodeUtf8)
@@ -35,10 +34,12 @@ import           Network.HTTP.Client                 (getUri, requestFromURI,
 import           Data.Functor                        (void)
 import           Network.URI                         (URI (..))
 import           Prelude                             hiding (exp)
+import Digg.OIDC.Client.Tokens (IdTokenJWT)
+import Jose.Jwt (Jwt(..))
 
 createLogoutRequestURL :: (MonadCatch m) => OIDC -- ^ The OIDC configuration
   -> Maybe State  -- ^ The state
-  -> ByteString   -- ^ Id token hint
+  -> IdTokenJWT   -- ^ Id token hint
   -> Parameters   -- ^ Extra parameters
   -> m URI        -- ^ The authorization request URL to redirect to
 createLogoutRequestURL oidc state idtoken extra = do
@@ -70,7 +71,7 @@ createLogoutRequestURL oidc state idtoken extra = do
     -- for handling the logout process in the OIDC client.
     base :: Parameters
     base =
-      [ ("id_token_hint", Just idtoken),
+      [ ("id_token_hint", Just $ unJwt idtoken),
         ("post_logout_redirect_uri", encodeUtf8 <$> oidcLogoutRedirectUri oidc)
       ]
 

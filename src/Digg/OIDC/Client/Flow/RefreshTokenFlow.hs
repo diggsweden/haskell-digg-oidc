@@ -16,7 +16,6 @@ import           Control.Monad.Catch                 (MonadCatch,
                                                       MonadThrow (throwM))
 import           Control.Monad.IO.Class              (MonadIO (liftIO))
 import           Data.Aeson                          (FromJSON, eitherDecode)
-import qualified Data.ByteString.Char8               as B
 import           Data.Maybe                          (fromJust, isJust,
                                                       isNothing)
 import           Data.Text                           (pack)
@@ -30,7 +29,7 @@ import           Digg.OIDC.Client.Session            (Session (..), SessionId,
                                                       SessionStorage (..))
 import           Digg.OIDC.Client.Tokens             (validateIdClaims,
                                                       validateToken,
-                                                      IdTokenClaims)
+                                                      IdTokenClaims, AccessTokenJWT)
 import           Digg.OIDC.Types                     (Address (..), Code)
 import           Jose.Jwt                            (Jwt (..))
 import           Network.HTTP.Client                 (Manager, Request (..),
@@ -68,9 +67,9 @@ refreshToken storage sid mgr oidc = do
       session
         { sessionNonce = Nothing,
           sessionState = Nothing,
-          sessionAccessToken = Just $ unJwt $ tokensResponseAccessToken tr,
-          sessionIdToken = Just $ unJwt $ tokensResponseIdToken tr,
-          sessionRefreshToken = unJwt <$> tokensResponseRefreshToken tr
+          sessionAccessToken = Just $ tokensResponseAccessToken tr,
+          sessionIdToken = Just $ tokensResponseIdToken tr,
+          sessionRefreshToken = tokensResponseRefreshToken tr
         }
 
     return claims
@@ -91,7 +90,7 @@ refreshToken storage sid mgr oidc = do
       return s
 
     -- | Calls the token endpoint to refresh the tokens.
-    callTokenEndpoint :: Maybe Code -> Maybe B.ByteString -> IO TokensResponse
+    callTokenEndpoint :: Maybe Code -> Maybe AccessTokenJWT -> IO TokensResponse
     callTokenEndpoint code rt = do
       req <- requestFromURI endpoint
       res <- httpLbs (urlEncodedBody (base code rt) $ req {method = "POST"}) mgr
@@ -113,6 +112,6 @@ refreshToken storage sid mgr oidc = do
         ("client_id", encodeUtf8 $ oidcClientId oidc),
         ("client_secret", encodeUtf8 $ oidcClientSecret oidc),
         ("redirect_uri", encodeUtf8 $ oidcRedirectUri oidc),
-        ("refresh_token", fromJust rt)
+        ("refresh_token", unJwt $ fromJust rt)
       ]
 

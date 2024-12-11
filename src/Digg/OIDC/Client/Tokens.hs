@@ -23,6 +23,9 @@ module Digg.OIDC.Client.Tokens
     validateIdClaims,
     IdTokenClaims,
     AccessTokenClaims,
+    IdTokenJWT,
+    AccessTokenJWT,
+    RefreshTokenJWT
   )
 where
 
@@ -52,6 +55,21 @@ import           Jose.Jwt                            (IntDate (..), Jwt,
                                                       JwtContent (Jwe, Jws, Unsecured))
 import qualified Jose.Jwt                            as Jwt
 import           Prelude                             hiding (exp)
+
+-- | Type aliases for the 'Claims' data type with specific additional claims for the ID token.
+type IdTokenClaims a = Claims (IdClaims a)
+
+-- | Type aliases for the 'Claims' data type with specific additional claims for the access token.
+type AccessTokenClaims a = Claims (AccessClaims a)
+
+-- | Type alias for representing an ID Token as a JSON Web Token (JWT).
+type IdTokenJWT = Jwt
+
+-- | Type alias for representing an access token in JWT (JSON Web Token) format.
+type AccessTokenJWT = Jwt
+
+-- | Type alias for representing the refresh token in JWT (JSON Web Token) format.
+type RefreshTokenJWT = Jwt
 
 -- | The 'Claims' data type represents the claims contained within a token and specific for any JWT.
 -- The type parameter 'a' allows for flexibility in specifying additional claims.
@@ -128,12 +146,6 @@ data NoExtraClaims = NoClaims
   deriving (Show, Eq, Generic)
 
 instance FromJSON NoExtraClaims
-
--- | Type aliases for the 'Claims' data type with specific additional claims for the ID token.
-type IdTokenClaims a = Claims (IdClaims a)
-
--- | Type aliases for the 'Claims' data type with specific additional claims for the access token.
-type AccessTokenClaims a = Claims (AccessClaims a)
 
 -- | Validates a given JWT token using the provided OIDC configuration and returns
 -- the token claims if the token is valid.

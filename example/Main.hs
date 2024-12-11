@@ -53,7 +53,9 @@ import           Digg.OIDC.Client.Session                    (SessionStorage (..
                                                               getIdToken)
 import           Digg.OIDC.Client.Storage.RedisStore         (redisStorage)
 import           Digg.OIDC.Client.Tokens                     (AccessTokenClaims,
+                                                              AccessTokenJWT,
                                                               IdTokenClaims,
+                                                              IdTokenJWT,
                                                               NoExtraClaims)
 import           Digg.OIDC.Types                             (Issuer)
 import           GHC.Exception.Type                          (SomeException)
@@ -351,7 +353,7 @@ run' = do
       H.p $ H.text "This page contains the result of the login or refresh flow. For now it only displays the ID token claims or any errors."
       H.pre . H.toHtml . show $ bool
 
-    htmlFetch :: Maybe ByteString -> Maybe ByteString
+    htmlFetch :: Maybe AccessTokenJWT -> Maybe IdTokenJWT
       -> Maybe (IdTokenClaims ProfileClaims)
       -> Maybe (AccessTokenClaims NoExtraClaims)
       -> Html

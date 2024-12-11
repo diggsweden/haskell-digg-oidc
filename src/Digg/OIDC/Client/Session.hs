@@ -24,11 +24,11 @@ import           Data.Maybe              (isJust, isNothing)
 import           Data.Text               (Text)
 import           Data.Text.Encoding      (decodeUtf8, encodeUtf8)
 import           Digg.OIDC.Client        (OIDC, OIDCException (InvalidState))
-import           Digg.OIDC.Client.Tokens (AccessTokenClaims, IdTokenClaims,
-                                          validateToken)
+import           Digg.OIDC.Client.Tokens (AccessTokenClaims, AccessTokenJWT,
+                                          IdTokenClaims, IdTokenJWT,
+                                          RefreshTokenJWT, validateToken)
 import           Digg.OIDC.Types         (Code, Nonce, State)
 import           GHC.Generics            (Generic)
-import           Jose.Jwt                (Jwt (..))
 
 -- | The 'Session' data type represents a user session in the OIDC (OpenID Connect) context.
 -- It is used to store and manage session-related information for authenticated users or users
@@ -36,9 +36,9 @@ import           Jose.Jwt                (Jwt (..))
 data Session = Session
   { sessionState        :: Maybe State,       -- ^ The state of the session, used during login and logout flows
     sessionNonce        :: Maybe Nonce,       -- ^ The nonce value of the session
-    sessionAccessToken  :: Maybe ByteString,  -- ^ The access token of the session
-    sessionIdToken      :: Maybe ByteString,  -- ^ The ID token of the session
-    sessionRefreshToken :: Maybe ByteString,  -- ^ The refresh token of the session
+    sessionAccessToken  :: Maybe AccessTokenJWT,  -- ^ The access token of the session
+    sessionIdToken      :: Maybe IdTokenJWT,  -- ^ The ID token of the session
+    sessionRefreshToken :: Maybe RefreshTokenJWT,  -- ^ The refresh token of the session
     sessionCode         :: Maybe Code         -- ^ The authorization code of the session
   }
   deriving (Generic, Show)
@@ -49,9 +49,9 @@ instance ToJSON Session where
     object
       [ "state" .= (decodeUtf8 <$> sessionState),
         "nonce" .= (decodeUtf8 <$> sessionNonce),
-        "accessToken" .= (decodeUtf8 <$> sessionAccessToken),
-        "idToken" .= (decodeUtf8 <$> sessionIdToken),
-        "refreshToken" .= (decodeUtf8 <$> sessionRefreshToken),
+        "accessToken" .= sessionAccessToken,
+        "idToken" .= sessionIdToken,
+        "refreshToken" .= sessionRefreshToken,
         "code" .= (decodeUtf8 <$> sessionCode)
       ]
 
@@ -63,9 +63,9 @@ instance FromJSON Session where
   parseJSON (Object v) =
     (Session . textToByteString <$> (v .:? "state"))
       <*> (textToByteString <$> (v .:? "nonce"))
-      <*> (textToByteString <$> (v .:? "accessToken"))
-      <*> (textToByteString <$> (v .:? "idToken"))
-      <*> (textToByteString <$> (v .:? "refreshToken"))
+      <*> (v .:? "accessToken")
+      <*> (v .:? "idToken")
+      <*> (v .:? "refreshToken")
       <*> (textToByteString <$> (v .:? "code"))
   parseJSON invalid =
     prependFailure "Parsing Session failed, " (typeMismatch "Object" invalid)
@@ -85,7 +85,7 @@ data SessionStorage m = SessionStorage
 -- | Retrieves the access token from the session storage.
 getAccessToken :: (MonadIO m, MonadCatch m) => SessionStorage m  -- ^ The session storage
   -> SessionId      -- ^ The session identifier
-  -> m (Maybe ByteString)   -- ^ The logout request URL to redirect to
+  -> m (Maybe AccessTokenJWT)   -- ^ The logout request URL to redirect to
 getAccessToken storage sid = do
 
     -- Verify the session
@@ -109,7 +109,7 @@ getAccessToken storage sid = do
 -- | Retrieves the access token from the session storage.
 getIdToken :: (MonadIO m, MonadCatch m) => SessionStorage m  -- ^ The session storage
   -> SessionId      -- ^ The session identifier
-  -> m (Maybe ByteString)   -- ^ The logout request URL to redirect to
+  -> m (Maybe IdTokenJWT)   -- ^ The logout request URL to redirect to
 getIdToken storage sid = do
 
     -- Verify the session
@@ -140,7 +140,7 @@ getIdClaims oidc storage sid = do
     session <- sessionStoreGet storage sid >>= verifySession
 
     -- Validate the ID token and extract the claims
-    let jwt = Jwt <$> sessionIdToken session
+    let jwt = sessionIdToken session
     mapM (validateToken oidc) jwt
 
   where
@@ -166,7 +166,7 @@ getAccessClaims oidc storage sid = do
     session <- sessionStoreGet storage sid >>= verifySession
 
     -- Validate the Access token and extract the claims
-    let jwt = Jwt <$> sessionAccessToken session
+    let jwt = sessionAccessToken session
     mapM (validateToken oidc) jwt
 
   where
