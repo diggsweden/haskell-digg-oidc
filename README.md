@@ -63,11 +63,9 @@ EXAMPLE_CLIENT_ID=thenameofyourclient
 ```
 
 * Execute the testbed with `stack exec digg-oidc-example`
-* Point your webbrowser to `http://localhost:3000/login`
-* To refresh your tokens with the OP point the webbrowser to `http://localhost:3000/refresh`
-* To logout with the OP point the webbrowser to `http://localhost:3000/refresh`
+* Point your webbrowser to `http://localhost:3000/login`, for other endpoints see routes table at the beginning of this document.
 
-You should now be able to login through your OP. If you want to test the token refresh point the browser to the **http://localhost:3000/refresh** endpoint. The testbed relies on a session cookie (**session**) to be able to track the session. Session data is stored in the key-value-store.
+You should now be able to login through your OP. The testbed relies on a http-only secure cookie (**session**) holding a session identity to be able to track the session. Session data is stored in the key-value-store.
 
 ## Usage
 
@@ -81,8 +79,9 @@ The library is meant as a starter to implement or show how to implement the func
 
 The following issues and limits exists:
 
-* Currently only supports Authorization Code Flow and Token Refresh.
-* Only support a redis compatible key/value storage.
+* Supports Authorization Code Flow, Token Refresh and RP initiated logout only.
+* Supports a redis compatible key/value storage but it is easy to add another storage solution.
+* Federation support not yet implementation.
 
 ## Support
 

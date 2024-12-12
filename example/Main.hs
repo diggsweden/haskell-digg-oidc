@@ -192,18 +192,18 @@ run' = do
   middleware logStdoutDev
   -- middleware logRequestHeaders
 
-  -- \| Route handler for the "/login" endpoint.
+  -- | Route handler for the "/login" endpoint.
   -- This handler will display a simple "login" form.
   get "/login" $
     blaze htmlLogin
 
-  -- \| Handles the POST request to the "/login" endpoint.
+  -- | Handles the POST request to the "/login" endpoint.
   -- This route is responsible for processing user login requests and will generate
   -- an authorization request to the OP.
   post "/login" $ do
     redirectToLogin
 
-  -- \| Handler for the "/login/callback" route.
+  -- | Handler for the "/login/callback" route.
   -- This route is used as the callback URL for the OIDC login flow and will process
   -- the login response from the provider.
   get "/login/callback" $ do
@@ -226,6 +226,29 @@ run' = do
           (redirect . pack . show)
           muri
 
+  -- | Handler for the logout callback endpoint.
+  -- This route is triggered after a user logs out and the OIDC provider
+  -- redirects back to the application. It processes the logout callback
+  -- and performs any necessary cleanup or redirection.
+  get "/logout/callback" $ do
+    err <- catch (Just <$> queryParam "error") noValue
+    case err of
+      Just e -> status401 $ fromStrict e
+      Nothing -> do
+        getCookie cookieName >>= doLogoutCallback
+        setCookie deleteCookie
+
+  -- | Handler for the "/refresh" route.
+  -- This route is used to refresh the tokens with the OP.
+  get "/refresh" $ do
+    sid <- getCookie cookieName
+    case sid of
+      Just s -> do
+        AuthServerEnv {..} <- lift ask
+        tokens <- liftIO $ catch (Right <$> refreshToken storage (encodeUtf8 s) mgr oidc) handleError
+        blaze $ htmlSuccess tokens
+      Nothing -> status404 "No current ongoing session found"
+
   -- | Handler for the "/fetch" route. It returns the id and access tokens and their claims
   get "/fetch" $ do
     sid <- getCookie cookieName
@@ -239,30 +262,7 @@ run' = do
         blaze $ htmlFetch token idtoken idClaims accessClaims
       Nothing -> status404 "No current ongoing session found"
 
-  -- | Handler for the logout callback endpoint.
-  -- This route is triggered after a user logs out and the OIDC provider
-  -- redirects back to the application. It processes the logout callback
-  -- and performs any necessary cleanup or redirection.
-  get "/logout/callback" $ do
-    err <- catch (Just <$> queryParam "error") noValue
-    case err of
-      Just e -> status401 $ fromStrict e
-      Nothing -> do
-        getCookie cookieName >>= doLogoutCallback
-        setCookie deleteCookie
-
-  -- \| Handler for the "/refresh" route.
-  -- This route is used to refresh the tokens with the OP.
-  get "/refresh" $ do
-    sid <- getCookie cookieName
-    case sid of
-      Just s -> do
-        AuthServerEnv {..} <- lift ask
-        tokens <- liftIO $ catch (Right <$> refreshToken storage (encodeUtf8 s) mgr oidc) handleError
-        blaze $ htmlSuccess tokens
-      Nothing -> status404 "No current ongoing session found"
-
-  -- \| Handler for the "/protected" route.
+  -- | Handler for the "/protected" route.
   -- This route is protected and requires the user to be authenticated.
   get "/protected" $ do
     protect
@@ -270,6 +270,7 @@ run' = do
 
   where
 
+    -- | Redirects the user to the login page.
     redirectToLogin :: ActionT (ReaderT AuthServerEnv IO) ()
     redirectToLogin = do
       AuthServerEnv {..} <- lift ask
@@ -281,6 +282,8 @@ run' = do
         (redirect . pack . show)
         muri
 
+    -- | The 'protect' function is an Action Transformer that ensures the
+    --   protected route can only be accessed by authenticated users.
     protect:: ActionT (ReaderT AuthServerEnv IO) ()
     protect = do
       AuthServerEnv {..} <- lift ask
@@ -297,6 +300,9 @@ run' = do
           redirectToLogin
           finish
 
+    cookieName = "session"
+
+    -- | Creates a cookie with the given session ID.
     createCookie sid =
       defaultSetCookie
         { setCookieName = encodeUtf8 cookieName,
@@ -308,6 +314,7 @@ run' = do
           setCookieMaxAge = Just $ secondsToDiffTime 600
         }
 
+    -- | Deletes a cookie from the client's browser.
     deleteCookie =
       defaultSetCookie
         { setCookieName = encodeUtf8 cookieName,
@@ -316,6 +323,7 @@ run' = do
           setCookieMaxAge = Just $ secondsToDiffTime 0
         }
 
+    -- | Handles the login callback, session, state and code.
     doLoginCallback cookie =
       case cookie of
         Just sid -> do
@@ -326,6 +334,7 @@ run' = do
           blaze $ htmlSuccess tokens
         Nothing -> status400 "Missing session information"
 
+    -- | Handles the logout callback, session and state.
     doLogoutCallback cookie =
       case cookie of
         Just sid -> do
@@ -335,21 +344,23 @@ run' = do
           blaze $ htmlLoggedOut result
         Nothing -> status400 "Missing session information"
 
+    -- Various html pages
+
     htmlPage :: String -> Html
     htmlPage s = do
-      H.h1 "Result"
+      H.h1 "Result:"
       H.pre . H.toHtml $ s
 
     htmlLoggedOut :: Either String () -> Html
     htmlLoggedOut result = do
-      H.h1 "Result"
+      H.h1 "Result:"
       H.p $ H.text "This page contains the result of the logout flow."
       H.pre . H.toHtml . show $ result
 
 
     htmlSuccess :: Either String (IdTokenClaims ProfileClaims) -> Html
     htmlSuccess bool = do
-      H.h1 "Result"
+      H.h1 "Result:"
       H.p $ H.text "This page contains the result of the login or refresh flow. For now it only displays the ID token claims or any errors."
       H.pre . H.toHtml . show $ bool
 
@@ -358,8 +369,8 @@ run' = do
       -> Maybe (AccessTokenClaims NoExtraClaims)
       -> Html
     htmlFetch t idt ic ac = do
-      H.h1 "Result"
-      H.p $ H.text "This page contains the access token and the id claims."
+      H.h1 "Result:"
+      H.p $ H.text "This page contains the access and id token and their claims."
       H.p $ H.text "Access token:"
       H.pre . H.toHtml . show $ t
       H.p $ H.text "Access token claims:"
@@ -369,27 +380,12 @@ run' = do
       H.p $ H.text "ID token claims:"
       H.pre . H.toHtml . show $ ic
 
-
     htmlLogin = do
       H.h1 "Login"
       H.p $ H.text "This page will contain more stuff later on, when we develop the testbed further. For now it only initiates the login flow."
       H.form ! A.method "post" ! A.action "/login" $
         H.button ! A.type_ "submit" $
           "login"
-
-    genSessionId sdrg = liftIO $ gen sdrg
-
-    noValue :: (MonadIO m) => SomeException -> m (Maybe a)
-    noValue e = do
-      liftIO $ print $ displayException e
-      return Nothing
-
-    handleError :: (MonadIO m) => SomeException -> m (Either String a)
-    handleError e = do
-      liftIO $ print $ displayException e
-      return $ Left $ displayException e
-
-    cookieName = "session"
 
     blaze = html . renderHtml
 
@@ -398,6 +394,21 @@ run' = do
     status401 m = status unauthorized401 >> text m
 
     status404 m = status notFound404 >> text m
+
+    -- | Generates a random session ID using the provided 'SystemDRG'.
+    genSessionId sdrg = liftIO $ gen sdrg
+
+    -- | A function that handles exceptions by returning 'Nothing'.
+    noValue :: (MonadIO m) => SomeException -> m (Maybe a)
+    noValue e = do
+      liftIO $ print $ displayException e
+      return Nothing
+
+    -- | Handles exceptions by converting them to an 'Either' type with a 'String' error message.
+    handleError :: (MonadIO m) => SomeException -> m (Either String a)
+    handleError e = do
+      liftIO $ print $ displayException e
+      return $ Left $ displayException e
 
 -- | Generates a random session ID using the provided 'SystemDRG'.
 gen :: IORef SystemDRG -> IO ByteString
