@@ -89,3 +89,35 @@ executable digg-oidc-example
                       -Wpartial-fields
                       -Wredundant-constraints
 
+test-suite digg-oidc-test
+  type:                exitcode-stdio-1.0
+  hs-source-dirs:      test
+  main-is:             Spec.hs
+  other-modules:       Digg.OIDC.TypesSpec
+                      , Digg.OIDC.Client.DiscoverySpec
+                      , Internal
+  build-depends:       base
+                     , hspec
+                     , QuickCheck
+                     , aeson
+                     , haskell-digg-oidc
+                     , network-uri
+                     , scotty
+                     , wai
+                     , http-mock
+                     , Interpolation
+  default-language:    Haskell2010
+  ghc-options:         -Wall
+                       -Wcompat
+                       -Widentities
+                       -Wincomplete-record-updates
+                       -Wincomplete-uni-patterns
+                       -Wmissing-export-lists
+                       -Wmissing-home-modules
+                       -Wpartial-fields
+                       -Wredundant-constraints
+                       -O2
+                       -threaded
+                       -rtsopts
+                       -with-rtsopts=-N
+

@@ -50,7 +50,7 @@ data Provider = Provider
   { metadata :: ProviderMetadata,
     jwkSet   :: [Jwk]
   }
-  deriving (Show)
+  deriving (Show, Eq)
 
 -- | 'ProviderMetadata' represents the metadata associated with an OpenID Connect (OIDC) provider.
 -- This data structure is used to store and manage the information retrieved from the provider's
@@ -58,24 +58,29 @@ data Provider = Provider
 -- endpoint, userinfo endpoint, and supported scopes and claims. It is by no means the complete
 -- set of metadata that can be retrieved from the discovery endpoint, but it is a good starting point.
 data ProviderMetadata = ProviderMetadata
-  { providerIssuer                            :: Text,              -- ^ The issuer value of the provider
-    providerAuthorizationEndpoint             :: Endpoint,          -- ^ The authorization endpoint
-    providerTokenEndpoint                     :: Endpoint,          -- ^ The token endpoint
-    providerRegistrationEndpoint              :: Maybe Endpoint,    -- ^ The registration endpoint
-    providerScopesSupported                   :: Maybe Scope,       -- ^ The supported scopes
-    providerResponseModesSupported            :: Maybe [Text],      -- ^ The supported response modes
-    providerGrantTypesSupported               :: Maybe [Text],      -- ^ The supported grant types
-    providerACRValuesSupported                :: Maybe [Text],      -- ^ The supported ACR values
-    providerUserinfoEndpoint                  :: Maybe Endpoint,    -- ^ The userinfo endpoint
-    providerRevocationEndpoint                :: Maybe Endpoint,    -- ^ The revocation endpoint
-    providerEndSessionEndpoint                :: Maybe Endpoint,    -- ^ The end session endpoint
-    providerJWKSUri                           :: Endpoint,          -- ^ The JWKS URI
-    providerResponseTypesSupported            :: [Text],            -- ^ The supported response types
-    providerSubjectTypesSupported             :: [Text],            -- ^ The supported subject types
-    providerIdTokenSigningAlgValuesSupported  :: [Algorithm],       -- ^ The supported signing algorithms for ID tokens
-    providerTokenEndpointAuthMethodsSupported :: Maybe [Text],      -- ^ The supported token endpoint authentication methods
-    providerClaimsSupported                   :: Maybe [Text]       -- ^ The supported claims
+  { providerIssuer                                     :: Text,              -- ^ The issuer value of the provider
+
+    providerAuthorizationEndpoint                      :: Endpoint,          -- ^ The authorization endpoint
+    providerUserinfoEndpoint                           :: Maybe Endpoint,    -- ^ The userinfo endpoint
+    providerEndSessionEndpoint                         :: Maybe Endpoint,    -- ^ The end session endpoint
+
+    providerScopesSupported                            :: Maybe Scope,       -- ^ The supported scopes
+    providerResponseModesSupported                     :: Maybe [Text],      -- ^ The supported response modes
+    providerGrantTypesSupported                        :: Maybe [Text],      -- ^ The supported grant types
+    providerACRValuesSupported                         :: Maybe [Text],      -- ^ The supported ACR values
+    providerResponseTypesSupported                     :: [Text],            -- ^ The supported response types
+    providerSubjectTypesSupported                      :: [Text],            -- ^ The supported subject types
+    providerClaimsSupported                            :: Maybe [Text],      -- ^ The supported claims
+
+    providerJWKSUri                                    :: Endpoint,          -- ^ The JWKS URI
+
+    providerIdTokenSigningAlgValuesSupported           :: [Algorithm],       -- ^ The supported signing algorithms for ID tokens
+
+    providerTokenEndpoint                              :: Endpoint,          -- ^ The token endpoint
+    providerTokenEndpointAuthSigningAlgValuesSupported :: [Algorithm], -- ^ The supported signing algorithms for token endpoint authentication
+    providerTokenEndpointAuthMethodsSupported          :: Maybe [Text]      -- ^ The supported token endpoint authentication methods
+
   }
-  deriving (Show)
+  deriving (Show, Eq)
 
 $(deriveFromJSON defaultOptions {fieldLabelModifier = camelTo2 '_' . drop 8} ''ProviderMetadata)

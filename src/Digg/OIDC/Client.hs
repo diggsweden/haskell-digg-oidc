@@ -28,7 +28,7 @@ data OIDC = OIDC
 createOIDC :: Text  -- ^ The client id as defined by the OIDC provider.
   -> Text           -- ^ The client secret as defined by the OIDC provider.
   -> Text           -- ^ The redirect URI.
-  -> Maybe Text
+  -> Maybe Text     -- ^ The logout redirect URI.
   -> Provider       -- ^ The OIDC provider configuration.
   -> OIDC           -- ^ The OIDC client configuration.
 createOIDC clientId clientSecret redirectURI logoutRedirectURI provider =
