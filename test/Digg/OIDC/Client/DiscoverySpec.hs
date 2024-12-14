@@ -37,7 +37,7 @@ spec = do
       application <- scottyApp app
       m <- catch (Right <$> withMockedManager application (discover "http://localhost/auth/realms/verify")) handleError
       case m of
-        Left _ -> expectationFailure "Failed to fetch the discovery endpoint"
+        Left e -> expectationFailure $ "Failed to fetch the discovery endpoint: " <> e
         Right provider -> do
           providerIssuer (metadata provider) `shouldBe` "http://localhost/auth/realms/verify"
 
