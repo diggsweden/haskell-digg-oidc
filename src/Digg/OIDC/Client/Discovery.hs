@@ -68,7 +68,7 @@ discover issuer manager = do
     -- | Handles HTTP exceptions that occur during the discovery process.
     discoverError :: (MonadThrow m) => HttpException -> m Provider
     discoverError e = do
-      throwM $ BackendHTTPException e
+      throwM $ BackendHTTPException $ pack (show e)
 
     -- | Retrieves the OpenID Connect provider metadata for a given issuer.
     getMetadata :: Issuer -> IO ProviderMetadata
@@ -88,9 +88,12 @@ discover issuer manager = do
     getJWKS :: Endpoint -> IO [Jwk]
     getJWKS ep = do
       res <- createJWKSRequest ep >>= flip httpLbs manager
-      case keys <$> eitherDecode (responseBody res) of
-        Right ks -> return ks
-        Left err -> throwM $ DiscoveryException $ "Failed to parse JWKS JSON response, error: " <> pack err
+      case statusCode (responseStatus res) of
+        200 -> do
+          case keys <$> eitherDecode (responseBody res) of
+            Right ks -> return ks
+            Left err -> throwM $ DiscoveryException $ "Failed to parse JWKS JSON response, error: " <> pack err        
+        n -> throwM $ DiscoveryException $ "Fetch JWKS endpoint returned HTTP Code " <> pack (show n)
 
     -- | Validates the given OIDC provider.
     validateProvider :: Provider -> IO Provider
