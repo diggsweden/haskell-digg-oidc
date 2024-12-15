@@ -8,13 +8,23 @@
 --    Provides functionality for storing OIDC session data in Redis.
 module Digg.OIDC.Client.Storage.RedisStore (redisStorage) where
 
+import           Control.Exception        (catch, throwIO)
 import           Control.Monad            (void)
+import           Control.Monad.IO.Class   (MonadIO, liftIO)
 import qualified Data.Aeson               as A
 import           Data.ByteString          (fromStrict, toStrict)
-import           Database.Redis           (Connection, del, expire, get,
-                                           runRedis, set)
+import           Database.Redis           (ConnectInfo (..), Connection,
+                                           checkedConnect, defaultConnectInfo,
+                                           del, expire, get, runRedis, set)
 import           Digg.OIDC.Client.Session (Session, SessionId,
                                            SessionStorage (..))
+
+redisConnectInfo :: String -> ConnectInfo
+redisConnectInfo host = defaultConnectInfo {connectHost = host}
+
+handleIOError :: IOError -> IO a
+handleIOError e = do
+  throwIO e
 
 -- | 'redisStore' initializes a session store using a Redis connection.
 --
@@ -24,28 +34,31 @@ import           Digg.OIDC.Client.Session (Session, SessionId,
 --
 -- You need to set the sessionStoreGenerate function, it is initialized
 -- as 'undefined' in this implementation.
-redisStorage :: Connection  -- ^ The Redis connection
-  -> SessionStorage IO      -- ^ The initialized session store
-redisStorage conn =
-    SessionStorage
+redisStorage :: (MonadIO m) => String    -- ^ The Redis connection string
+  -> m (SessionStorage IO)    -- ^ The initialized session store
+redisStorage redis = do
+
+    conn <- liftIO $ catch (checkedConnect (redisConnectInfo redis)) handleIOError
+
+    return SessionStorage
       { sessionStoreGenerate = undefined,
-        sessionStoreSave = sessionSave,
-        sessionStoreGet = sessionGet,
-        sessionStoreDelete = sessionDelete
+        sessionStoreSave = sessionSave conn,
+        sessionStoreGet = sessionGet conn,
+        sessionStoreDelete = sessionDelete conn
       }
   where
 
     -- | Saves a session in the Redis store.
-    sessionSave :: SessionId -> Session -> IO ()
-    sessionSave sid ses = do
+    sessionSave :: Connection -> SessionId -> Session -> IO ()
+    sessionSave conn sid ses = do
       _ <- runRedis conn $ do
         _ <- set sid $ toStrict (A.encode ses)
         expire sid 600
       return ()
 
     -- | Retrieves a session from the Redis store based on the given session ID.
-    sessionGet :: SessionId -> IO (Maybe Session)
-    sessionGet sid = do
+    sessionGet :: Connection -> SessionId -> IO (Maybe Session)
+    sessionGet conn sid = do
       res <- runRedis conn $ get sid
       case res of
         Left _         -> return Nothing
@@ -53,6 +66,6 @@ redisStorage conn =
         Right Nothing  -> return Nothing
 
     -- | Deletes a session from the Redis store.
-    sessionDelete :: SessionId -> IO ()
-    sessionDelete sid = void $ runRedis conn $ del [sid]
+    sessionDelete :: Connection -> SessionId -> IO ()
+    sessionDelete conn sid = void $ runRedis conn $ del [sid]
 

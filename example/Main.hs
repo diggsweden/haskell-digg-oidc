@@ -35,9 +35,7 @@ import           Data.Text.Lazy                              (fromStrict, pack,
                                                               toStrict)
 import           Data.Time.Clock                             (secondsToDiffTime)
 import           Data.Tuple                                  (swap)
-import           Database.Redis                              (ConnectInfo (..),
-                                                              checkedConnect,
-                                                              defaultConnectInfo)
+
 import           Digg.OIDC.Client                            (OIDC, createOIDC)
 import           Digg.OIDC.Client.Discovery                  (discover)
 import           Digg.OIDC.Client.Discovery.Provider         (metadata)
@@ -51,6 +49,7 @@ import           Digg.OIDC.Client.Session                    (SessionStorage (..
                                                               getAccessToken,
                                                               getIdClaims,
                                                               getIdToken)
+-- import           Digg.OIDC.Client.Storage.MemoryStore        (memoryStorage)
 import           Digg.OIDC.Client.Storage.RedisStore         (redisStorage)
 import           Digg.OIDC.Client.Tokens                     (AccessTokenClaims,
                                                               AccessTokenJWT,
@@ -85,12 +84,6 @@ import           Web.Scotty.Trans                            (ActionT, ScottyT,
                                                               queryParam,
                                                               redirect, scottyT,
                                                               status, text)
-
---
--- Redis connection information
---
-redisConnectInfo :: String -> ConnectInfo
-redisConnectInfo host = defaultConnectInfo {connectHost = host}
 
 --
 -- Authorization server environment
@@ -139,7 +132,8 @@ main = do
 
   -- Create the system DRG and the session storage
   sdrg <- getSystemDRG >>= newIORef
-  storage <- redisStorage <$> catch (checkedConnect (redisConnectInfo redis)) (handleIOError "Failed to connect to Redis: ")
+  storage <- catch (redisStorage redis) (handleIOError "Failed to connect to redis")
+  -- storage <- catch (memoryStorage) (handleIOError "Failed to create the memory storage")
 
   -- Create the HTTP client manager and the OIDC client
   mgr <- newManager tlsManagerSettings
@@ -400,14 +394,12 @@ run' = do
 
     -- | A function that handles exceptions by returning 'Nothing'.
     noValue :: (MonadIO m) => SomeException -> m (Maybe a)
-    noValue e = do
-      liftIO $ print $ displayException e
+    noValue _ = do
       return Nothing
 
     -- | Handles exceptions by converting them to an 'Either' type with a 'String' error message.
     handleError :: (MonadIO m) => SomeException -> m (Either String a)
     handleError e = do
-      liftIO $ print $ displayException e
       return $ Left $ displayException e
 
 -- | Generates a random session ID using the provided 'SystemDRG'.

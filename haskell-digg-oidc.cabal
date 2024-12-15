@@ -23,6 +23,7 @@ library
   ghc-options:        -Wall
   exposed-modules:    Digg.OIDC.Client.Session
                       , Digg.OIDC.Client.Storage.RedisStore
+                      , Digg.OIDC.Client.Storage.MemoryStore
                       , Digg.OIDC.Client.Discovery.Provider
                       , Digg.OIDC.Client.Discovery
                       , Digg.OIDC.Client.Tokens
@@ -44,6 +45,7 @@ library
                       , network-uri
                       , exceptions
                       , jose-jwt
+                      , containers
   ghc-options:         -Wall
                        -Wcompat
                        -Widentities
