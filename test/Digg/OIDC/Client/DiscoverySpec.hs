@@ -3,21 +3,14 @@
 
 module Digg.OIDC.Client.DiscoverySpec (spec) where
 
-import           Control.Exception                   (catch)
-import           Control.Monad.IO.Class
+import           Control.Exception          (catch)
 import           Data.String.Interpolation
 import           Digg.OIDC.Client
-import           Digg.OIDC.Client.Discovery          (discover)
-import           Digg.OIDC.Client.Discovery.Provider (Provider (..),
-                                                      ProviderMetadata (..))
-import           Digg.OIDC.Types                     (Address (..))
+import           Digg.OIDC.Client.Discovery (discover)
 import           Internal
 import           Network.HTTP.Types
 import           Test.Hspec
-import           Text.ParserCombinators.ReadPrec     (lift)
 import           Web.Scotty
-import           Jose.Jwk         (Jwk(..))
-import  Crypto.PubKey.RSA
 
 -- | Specification for testing the OIDC Client Discovery functionality.
 -- This spec contains tests to ensure that the OIDC client discovery
