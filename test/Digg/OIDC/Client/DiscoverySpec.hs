@@ -4,49 +4,56 @@
 module Digg.OIDC.Client.DiscoverySpec (spec) where
 
 import           Control.Exception                   (catch)
+import           Control.Monad.IO.Class
 import           Data.String.Interpolation
 import           Digg.OIDC.Client
 import           Digg.OIDC.Client.Discovery          (discover)
 import           Digg.OIDC.Client.Discovery.Provider (Provider (..),
                                                       ProviderMetadata (..))
+import           Digg.OIDC.Types                     (Address (..))
 import           Internal
-import           Network.HTTP.Mock
 import           Network.HTTP.Types
 import           Test.Hspec
+import           Text.ParserCombinators.ReadPrec     (lift)
 import           Web.Scotty
+import           Jose.Jwk         (Jwk(..))
+import  Crypto.PubKey.RSA
 
+-- | Specification for testing the OIDC Client Discovery functionality.
+-- This spec contains tests to ensure that the OIDC client discovery
+-- process works as expected.
 spec :: Spec
 spec = do
-  describe "OIDC Discovery" $ do
 
-    it "Non existant discovery endpoint" $ do
-      application <- scottyApp app
-      shouldThrow (withMockedManager application (discover "http://localhost/donotexists"))
-        (oidcException (DiscoveryException "Well-known endpoint retuned HTTP Code 404"))
+  around (mock app) $ do
 
-    it "Fetch the discovery endpoint" $ do
-      application <- scottyApp app
-      m <- catch (Right <$> withMockedManager application (discover "http://localhost/auth/realms/verify")) handleError
-      case m of
-        Left e -> expectationFailure $ "Failed to fetch the discovery endpoint: " <> e
-        Right provider -> do
-          providerIssuer (metadata provider) `shouldBe` "http://localhost/auth/realms/verify"
+    describe "OIDC Discovery" $ do
 
-    it "Lack of required data in discovery endpoint" $ do
-      application <- scottyApp app
-      shouldThrow (withMockedManager application (discover "http://localhost/auth/realms/missing1"))
-        (oidcException (DiscoveryException "Failed to parse JSON response, error: Error in $: When parsing the record ProviderMetadata of type Digg.OIDC.Client.Discovery.Provider.ProviderMetadata the key authorization_endpoint was not present."))
+      it "Non existant discovery endpoint" $ \mgr -> do
+        shouldThrow (discover "http://localhost/donotexists" mgr)
+          (oidcException (DiscoveryException "Well-known endpoint retuned HTTP Code 404"))
 
-    it "Other error from discovery endpoint" $ do
-        application <- scottyApp app
-        shouldThrow (withMockedManager application (discover "http://localhost/auth/realms/other"))
-          (oidcException (DiscoveryException "Well-known endpoint retuned HTTP Code 500"))
+      it "Fetch the discovery endpoint" $ \mgr -> do
+        m <- catch (Right <$> discover "http://localhost/auth/realms/verify" mgr) handleError
+        case m of
+          Left e -> expectationFailure $ "Failed to fetch the discovery endpoint: " <> e
+          Right provider -> do
+            show provider `shouldBe` "Provider {metadata = ProviderMetadata {providerIssuer = \"http://localhost/auth/realms/verify\", providerAuthorizationEndpoint = Address {uri = http://localhost/auth/realms/verify/protocol/openid-connect/auth}, providerUserinfoEndpoint = Just (Address {uri = http://localhost/auth/realms/verify/protocol/openid-connect/userinfo}), providerEndSessionEndpoint = Just (Address {uri = http://localhost/auth/realms/verify/protocol/openid-connect/logout}), providerScopesSupported = Just [\"openid\",\"phone\",\"basic\",\"web-origins\",\"profile\",\"acr\",\"testbed\",\"email\",\"address\",\"offline_access\",\"microprofile-jwt\",\"roles\"], providerResponseModesSupported = Nothing, providerGrantTypesSupported = Just [\"authorization_code\",\"implicit\",\"refresh_token\",\"password\",\"client_credentials\",\"urn:openid:params:grant-type:ciba\",\"urn:ietf:params:oauth:grant-type:device_code\"], providerACRValuesSupported = Just [\"0\",\"1\"], providerResponseTypesSupported = [\"code\",\"none\",\"id_token\",\"token\",\"id_token token\",\"code id_token\",\"code token\",\"code id_token token\"], providerSubjectTypesSupported = [\"public\",\"pairwise\"], providerClaimsSupported = Just [\"aud\",\"sub\",\"iss\",\"auth_time\",\"name\",\"given_name\",\"family_name\",\"preferred_username\",\"email\",\"acr\"], providerJWKSUri = Address {uri = http://localhost/auth/realms/verify/protocol/openid-connect/certs}, providerIdTokenSigningAlgValuesSupported = [Unsupported \"PS384\",Algorithm RS384,Algorithm EdDSA,Algorithm ES384,Algorithm HS256,Algorithm HS512,Algorithm ES256,Algorithm RS256,Algorithm HS384,Algorithm ES512,Unsupported \"PS256\",Unsupported \"PS512\",Algorithm RS512], providerTokenEndpoint = Address {uri = http://localhost/auth/realms/verify/protocol/openid-connect/token}, providerTokenEndpointAuthSigningAlgValuesSupported = [Unsupported \"PS384\",Algorithm RS384,Algorithm EdDSA,Algorithm ES384,Algorithm HS256,Algorithm HS512,Algorithm ES256,Algorithm RS256,Algorithm HS384,Algorithm ES512,Unsupported \"PS256\",Unsupported \"PS512\",Algorithm RS512], providerTokenEndpointAuthMethodsSupported = Just [\"private_key_jwt\",\"client_secret_basic\",\"client_secret_post\",\"tls_client_auth\",\"client_secret_jwt\"]}, jwkSet = [RsaPublicJwk (PublicKey {public_size = 256, public_n = 20987703012223672814501884882171848248078334386279410275261150449915502707026124168461124362292627924029791881494820950916016213318406304354022058655706486944057048442046235856407543085047361820202074465022398898735449768038168692685151706577474208670020756607418759506176497243171110135623610378722668173383103760061442594487007612500595845653382857714674350946965257542295144682551433761126372199912652840663821360622409887408739747622059189819397216237275856866800035151396806145450484348280804232343633760308842253646993806520936880286567085374980574096767225549080769319581689218892523386222739277230390957383991, public_e = 65537}) (Just (KeyId \"bIbln6kFW7fNARAXgFyZWN5kvRS6goTJELJT1Tdm_mw\")) (Just Sig) (Just (Signed RS256))]}"
 
-    it "Cannot fetch jwksuri" $ do
-        application <- scottyApp app
-        shouldThrow (withMockedManager application (discover "http://localhost/auth/realms/missing2"))
-          (oidcException (DiscoveryException "Fetch JWKS endpoint returned HTTP Code 500"))
+      it "Lack of required data in discovery endpoint" $ \mgr -> do
+        shouldThrow (discover "http://localhost/auth/realms/missing1" mgr)
+          (oidcException (DiscoveryException "Failed to parse JSON response, error: Error in $: When parsing the record ProviderMetadata of type Digg.OIDC.Client.Discovery.Provider.ProviderMetadata the key authorization_endpoint was not present."))
 
+      it "Other error from discovery endpoint" $ \mgr -> do
+          shouldThrow (discover "http://localhost/auth/realms/other" mgr)
+            (oidcException (DiscoveryException "Well-known endpoint retuned HTTP Code 500"))
+
+      it "Cannot fetch jwksuri" $ \mgr -> do
+          shouldThrow (discover "http://localhost/auth/realms/missing2" mgr)
+            (oidcException (DiscoveryException "Fetch JWKS endpoint returned HTTP Code 500"))
+
+-- | The 'app' function defines the Scotty application.
+-- This function sets up the routes and handlers for the web application.
 app :: ScottyM ()
 app = do
 

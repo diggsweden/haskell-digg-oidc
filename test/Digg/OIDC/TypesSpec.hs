@@ -1,12 +1,13 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Digg.OIDC.TypesSpec (spec) where
 
-import           Data.Aeson      (encode, decode)
-import           Data.Maybe      (fromJust, Maybe(..))
+import           Data.Aeson      (decode, encode)
+import           Data.Maybe      (fromJust)
 import           Digg.OIDC.Types
-import           Network.URI     (URI, parseAbsoluteURI)
+import           Network.URI     (parseAbsoluteURI)
 import           Test.Hspec
 
+-- | Specification for testing the Digg OIDC Types module.
 spec :: Spec
 spec = do
   describe "Address JSON" $ do

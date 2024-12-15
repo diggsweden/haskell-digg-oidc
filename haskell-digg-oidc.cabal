@@ -111,6 +111,8 @@ test-suite digg-oidc-test
                      , http-types
                      , http-client
                      , hspec-core
+                     , jose-jwt
+                     , cryptonite
   default-language:    Haskell2010
   ghc-options:         -Wall
                        -Wcompat
