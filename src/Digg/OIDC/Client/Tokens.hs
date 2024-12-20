@@ -200,7 +200,7 @@ validateIdClaims :: Text -- ^ The expected issuer
 validateIdClaims issuer client n claims = do
 
     now <- getCurrentIntDate
-
+    
     unless (iss claims == issuer)
         $ throwM $ ValidationException $ "Issuer in token \"" <> iss claims <> "\" is different than expected issuer \"" <> issuer <> "\""
 

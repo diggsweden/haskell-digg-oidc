@@ -137,10 +137,9 @@ authorizationGranted storage sid mgr oidc state code = do
     claims <- T.validateToken oidc $ tokensResponseIdToken tr
     liftIO $ T.validateIdClaims (providerIssuer . metadata $ oidcProvider oidc) (oidcClientId oidc) (sessionNonce session) claims
 
-    -- Validate the ID token
+    -- Validate the Access token
     claimsA::(AccessTokenClaims T.NoExtraClaims) <- T.validateToken oidc $ tokensResponseAccessToken tr
     liftIO $ T.validateAccessClaims (providerIssuer . metadata $ oidcProvider oidc) (oidcClientId oidc) claimsA
-    liftIO $ print $ "Claims " <> show claimsA
 
     -- Update the session
     sessionStoreSave storage sid $

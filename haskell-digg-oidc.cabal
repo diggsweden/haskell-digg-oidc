@@ -31,8 +31,8 @@ library
                       , Digg.OIDC.Client.Flow.LogoutFlow
                       , Digg.OIDC.Client.Flow.RefreshTokenFlow
                       , Digg.OIDC.Client
-                      , Digg.OIDC.Types   
-  other-modules:      Digg.OIDC.Client.Internal
+                      , Digg.OIDC.Types
+                      , Digg.OIDC.Client.Internal   
   build-depends:       base >= 4.7 && < 5
                       , mtl
                       , bytestring
@@ -97,6 +97,7 @@ test-suite digg-oidc-test
   main-is:             Spec.hs
   other-modules:       Digg.OIDC.TypesSpec
                       , Digg.OIDC.Client.DiscoverySpec
+                      , Digg.OIDC.Client.InternalSpec
                       , Internal
   build-depends:       base
                      , hspec
