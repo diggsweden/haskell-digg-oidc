@@ -37,7 +37,7 @@ Why Haskell? Haskell is a lazy, purely functional, statically typed language use
 
 ## Installation and Requirements
 
-The testbed is developed in haskell and uses the [stack](https://docs.haskellstack.org/en/stable/install_and_upgrade/) build system and verified to work with GHC 9.6.6.
+The testbed is developed in haskell and uses the [stack](https://docs.haskellstack.org/en/stable/install_and_upgrade/) build system and verified to work with GHC 9.10.3.
 
 * Install the [stack](https://docs.haskellstack.org/en/stable/install_and_upgrade/) build system
 * Clone the repository
