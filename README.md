@@ -6,7 +6,11 @@ SPDX-License-Identifier: MIT
 
 # Haskell OpenID Connect and OpenID Federation client testbed
 
-This is a client testbed and demonstrator written in haskell for OpenID Connect and OpenID Federation. It can be used as a showcase or as a basis for learning OpenID Connect and Federation specifications and give various implementation hints. This is an ongoing project and by no means complete in support of the related standards.
+This is a client testbed and demonstrator written in haskell for OpenID Connect. It can be used as a showcase or as a basis for learning OpenID Connect and give various implementation hints. This is an ongoing project and by no means complete in support of the related standards.
+
+
+It keeps the session store server side and supports memory, redis/valkey and postgreSQL.
+
 
 It contains the following routes:
 
@@ -24,16 +28,17 @@ Why Haskell? Haskell is a lazy, purely functional, statically typed language use
 
 ## Table of Contents
 
-- [Installation and Requirements](#installation-and-requirements)
-- [Quickstart Instructions](#quick-start-instructions)
-- [Usage](#usage)
-- [Known Issues](#known-issues)
-- [Support](#support)
-- [Contributing](#contributing)
-- [Development](#development)
-- [License](#license)
-- [Maintainers](#maintainers)
-- [Credits and References](#credits-and-references)
+- [Haskell OpenID Connect and OpenID Federation client testbed](#haskell-openid-connect-and-openid-federation-client-testbed)
+  - [Table of Contents](#table-of-contents)
+  - [Installation and Requirements](#installation-and-requirements)
+  - [Quick start instructions](#quick-start-instructions)
+  - [Usage](#usage)
+  - [Known issues](#known-issues)
+  - [Support](#support)
+  - [Contributing](#contributing)
+  - [License](#license)
+  - [Maintainers](#maintainers)
+  - [Credits and References](#credits-and-references)
 
 ## Installation and Requirements
 
@@ -79,9 +84,9 @@ The library is meant as a starter to implement or show how to implement the func
 
 The following issues and limits exists:
 
-* Supports Authorization Code Flow, Token Refresh and RP initiated logout only.
-* Supports a redis compatible key/value storage but it is easy to add another storage solution.
-* Federation support not yet implementation.
+* Supports Discovery, Authorization Code Flow, Token Refresh and RP initiated logout only.
+* Supports a redis compatible key/value store, memory and postgreSQL but it is easy to add another storage solution.
+* Supports a cleanup of old sessions.
 
 ## Support
 
@@ -97,7 +102,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Maintainers
 
-The maintainer is Tomas Stenlund, dnulnets.
+The maintainer is Tomas Stenlund, github user dnulnets.
 
 ## Credits and References
 

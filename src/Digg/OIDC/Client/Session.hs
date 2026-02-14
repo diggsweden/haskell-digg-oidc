@@ -79,7 +79,8 @@ data SessionStorage m = SessionStorage
   { sessionStoreGenerate :: m ByteString,                     -- ^ Generates a new unique identifier, for a session and a nonce
     sessionStoreSave     :: SessionId -> Session -> m (),     -- ^ Saves a session with the given identifier
     sessionStoreGet      :: SessionId -> m (Maybe Session),   -- ^ Retrieves a session with the given identifier
-    sessionStoreDelete   :: SessionId -> m ()                 -- ^ Deletes a session with the given identifier
+    sessionStoreDelete   :: SessionId -> m (),                -- ^ Deletes a session with the given identifier
+    sessionStoreCleanup  :: Integer -> m ()                   -- ^ Clears all sessions from the store older than the provided age in seconds
   }
 
 -- | Retrieves the access token from the session storage.

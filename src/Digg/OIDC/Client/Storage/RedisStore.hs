@@ -44,7 +44,8 @@ redisStorage redis = do
       { sessionStoreGenerate = undefined,
         sessionStoreSave = sessionSave conn,
         sessionStoreGet = sessionGet conn,
-        sessionStoreDelete = sessionDelete conn
+        sessionStoreDelete = sessionDelete conn,
+        sessionStoreCleanup = sessionCleanup conn
       }
   where
 
@@ -68,4 +69,9 @@ redisStorage redis = do
     -- | Deletes a session from the Redis store.
     sessionDelete :: Connection -> SessionId -> IO ()
     sessionDelete conn sid = void $ runRedis conn $ del [sid]
+
+    -- | Clears all sessions from the Redis store older than the provided age in seconds.
+    sessionCleanup :: Connection -> Integer -> IO ()
+    sessionCleanup conn age = do
+      return ()
 

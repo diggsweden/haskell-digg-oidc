@@ -31,7 +31,8 @@ handleIOError e = do
 --
 -- CREATE TABLE sessions (
 --     session_id TEXT PRIMARY KEY,
---     session_data BYTEA NOT NULL);
+--     session_data BYTEA NOT NULL,
+--     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW());
 --
 -- The session data is stored as a JSON-encoded byte array. The 'sessionStoreGenerate' function
 --
@@ -46,18 +47,19 @@ postgreSQLStorage connInfo = do
       { sessionStoreGenerate = undefined,
         sessionStoreSave = sessionSave conn,
         sessionStoreGet = sessionGet conn,
-        sessionStoreDelete = sessionDelete conn
+        sessionStoreDelete = sessionDelete conn,
+        sessionStoreCleanup = sessionCleanup conn
       }
   where
 
-    -- | Saves a session in the Redis store.
+    -- | Saves a session in the PostgreSQL store.
     sessionSave :: Connection -> SessionId -> Session -> IO ()
     sessionSave conn sid ses = do
       let sessionData = toStrict (A.encode ses)
       void $ execute conn "INSERT INTO sessions (session_id, session_data) VALUES (?, ?) ON CONFLICT (session_id) DO UPDATE SET session_data = EXCLUDED.session_data" (sid  , sessionData)
       return ()
 
-    -- | Retrieves a session from the Redis store based on the given session ID.
+    -- | Retrieves a session from the PostgreSQL store based on the given session ID.
     sessionGet :: Connection -> SessionId -> IO (Maybe Session)
     sessionGet conn sid = do
         [Only sessionData] <- query conn "SELECT session_data FROM sessions WHERE session_id = ?" (Only { fromOnly = sid })
@@ -70,4 +72,7 @@ postgreSQLStorage connInfo = do
     sessionDelete conn sid = do
       void $ execute conn "DELETE FROM sessions WHERE session_id = ?" (Only sid)
 
-
+    -- | Clears all sessions from the PostgreSQL store older than the provided age in seconds.
+    sessionCleanup :: Connection -> Integer -> IO ()
+    sessionCleanup conn age = do
+      void $ execute conn "DELETE FROM sessions WHERE EXTRACT(EPOCH FROM (NOW() - created_at)) > ?" (Only age)

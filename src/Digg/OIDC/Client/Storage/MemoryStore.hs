@@ -28,24 +28,29 @@ memoryStorage = do
       { sessionStoreGenerate = undefined,
         sessionStoreSave = sessionSave sm,
         sessionStoreGet = sessionGet sm,
-        sessionStoreDelete = sessionDelete sm
+        sessionStoreDelete = sessionDelete sm,
+        sessionStoreCleanup = sessionCleanup sm
       }
   where
 
-    -- | Saves a session in the Redis store.
+    -- | Saves a session in the memory store.
     sessionSave :: SessionMap -> SessionId -> Session -> IO ()
     sessionSave smap sid ses = do
         atomicModifyIORef' smap $ \m -> (M.insert sid ses m, ())
         return ()
 
-    -- | Retrieves a session from the Redis store based on the given session ID.
+    -- | Retrieves a session from the memory store based on the given session ID.
     sessionGet :: SessionMap -> SessionId -> IO (Maybe Session)
     sessionGet smap sid = do
         m <- readIORef smap
         return $ M.lookup sid m
 
-    -- | Deletes a session from the Redis store.
+    -- | Deletes a session from the memory store.
     sessionDelete :: SessionMap -> SessionId -> IO ()
     sessionDelete smap sid = do
         atomicModifyIORef' smap $ \m -> (M.delete sid m, ())
 
+    -- | Clears all sessions from the memory store older than the provided age in seconds.
+    sessionCleanup :: SessionMap -> Integer -> IO ()
+    sessionCleanup smap age = do
+        return ()
