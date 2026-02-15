@@ -132,7 +132,7 @@ main = do
 
   -- Create the system DRG and the session storage
   sdrg <- getSystemDRG >>= newIORef
-  storage <- catch (redisStorage redis) (handleIOError "Failed to connect to redis")
+  storage <- catch (redisStorage redis 600) (handleIOError "Failed to connect to redis")
   -- storage <- catch (memoryStorage) (handleIOError "Failed to create the memory storage")
 
   -- Create the HTTP client manager and the OIDC client

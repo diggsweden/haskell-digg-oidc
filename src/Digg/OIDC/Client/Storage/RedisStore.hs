@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 -- |
 --    Module: Digg.OIDC.Storage.RedisStore
 --    Copyright: (c) 2024 Digg - Agency for Digital Government
@@ -13,18 +14,29 @@ import           Control.Monad            (void)
 import           Control.Monad.IO.Class   (MonadIO, liftIO)
 import qualified Data.Aeson               as A
 import           Data.ByteString          (fromStrict, toStrict)
+import           Data.ByteString.Char8    (ByteString, pack)
 import           Database.Redis           (ConnectInfo (..), Connection,
-                                           checkedConnect, defaultConnectInfo,
-                                           del, expire, get, runRedis, set)
+                                           RedisCtx, checkedConnect,
+                                           defaultConnectInfo, del, get,
+                                           runRedis, sendRequest, set)
 import           Digg.OIDC.Client.Session (Session, SessionId,
                                            SessionStorage (..))
 
+-- | Function to create a Redis connection info from a host string
 redisConnectInfo :: String -> ConnectInfo
 redisConnectInfo host = defaultConnectInfo {connectHost = host}
 
+-- | Handles IO errors by rethrowing them as exceptions.
 handleIOError :: IOError -> IO a
 handleIOError e = do
   throwIO e
+
+-- | Sets a key in Redis with an expiration time but only if it is not already set.
+-- The redis implementation does not support the EXPIRE command with NX option.
+expireNX :: (RedisCtx m f) => ByteString
+    -> Integer
+    -> m (f Bool)
+expireNX key seconds = sendRequest (["EXPIRE"] ++ [key] ++ [pack (show seconds)] ++ ["NX"])
 
 -- | 'redisStore' initializes a session store using a Redis connection.
 --
@@ -35,8 +47,9 @@ handleIOError e = do
 -- You need to set the sessionStoreGenerate function, it is initialized
 -- as 'undefined' in this implementation.
 redisStorage :: (MonadIO m) => String    -- ^ The Redis connection string
+  -> Integer                  -- ^ The expiration time for sessions in seconds
   -> m (SessionStorage IO)    -- ^ The initialized session store
-redisStorage redis = do
+redisStorage redis expTime = do
 
     conn <- liftIO $ catch (checkedConnect (redisConnectInfo redis)) handleIOError
 
@@ -54,7 +67,7 @@ redisStorage redis = do
     sessionSave conn sid ses = do
       _ <- runRedis conn $ do
         _ <- set sid $ toStrict (A.encode ses)
-        expire sid 600
+        expireNX sid expTime
       return ()
 
     -- | Retrieves a session from the Redis store based on the given session ID.
@@ -71,7 +84,8 @@ redisStorage redis = do
     sessionDelete conn sid = void $ runRedis conn $ del [sid]
 
     -- | Clears all sessions from the Redis store older than the provided age in seconds.
+    -- We are using Redis' built-in expiration mechanism, so this function does not need to do anything.
     sessionCleanup :: Connection -> Integer -> IO ()
-    sessionCleanup conn age = do
+    sessionCleanup _ _ = do
       return ()
 

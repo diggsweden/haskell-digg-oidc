@@ -16,9 +16,16 @@ import           Control.Monad.IO.Class     (MonadIO, liftIO)
 import qualified Data.Aeson                 as A
 import           Data.ByteString            (toStrict)
 import           Database.PostgreSQL.Simple (ConnectInfo (..), Connection,
-                                             Only (..), connect, execute, query)
+                                             Only (..), close, connect, execute,
+                                             query)
 import           Digg.OIDC.Client.Session   (Session, SessionId,
                                              SessionStorage (..))
+
+import           Control.Concurrent         (getNumCapabilities)
+import           Data.Pool                  (Pool, defaultPoolConfig,
+                                             newPool,
+                                             withResource)
+
 
 -- | Handles IO errors by rethrowing them as exceptions.
 handleIOError :: IOError -> IO a
@@ -38,41 +45,53 @@ handleIOError e = do
 --
 -- You need to set the sessionStoreGenerate function, it is initialized as 'undefined' in this implementation.
 --
+
+-- | Function to create a new database connection
+createConn :: ConnectInfo -> IO Connection
+createConn conf = connect conf
+
+-- | Function to destroy a database connection
+destroyConn :: Connection -> IO ()
+destroyConn = close
+
 postgreSQLStorage :: (MonadIO m) => ConnectInfo     -- ^ The PostgreSQL connection info
   -> m (SessionStorage IO)                          -- ^ The initialized session store
 postgreSQLStorage connInfo = do
 
-    conn <- liftIO $ catch (connect connInfo) handleIOError
+    n <- liftIO $ getNumCapabilities
+    liftIO $ putStrLn $ "Creating PostgreSQL connection pool with " ++ show n ++ " connections."
+    pool <- liftIO $ catch (newPool $ defaultPoolConfig (createConn connInfo) destroyConn 30 n) handleIOError
+
     return SessionStorage
       { sessionStoreGenerate = undefined,
-        sessionStoreSave = sessionSave conn,
-        sessionStoreGet = sessionGet conn,
-        sessionStoreDelete = sessionDelete conn,
-        sessionStoreCleanup = sessionCleanup conn
+        sessionStoreSave = sessionSave pool,
+        sessionStoreGet = sessionGet pool,
+        sessionStoreDelete = sessionDelete pool,
+        sessionStoreCleanup = sessionCleanup pool
       }
   where
 
     -- | Saves a session in the PostgreSQL store.
-    sessionSave :: Connection -> SessionId -> Session -> IO ()
-    sessionSave conn sid ses = do
+    sessionSave :: Pool Connection -> SessionId -> Session -> IO ()
+    sessionSave pool sid ses = withResource pool $ \conn -> do
       let sessionData = toStrict (A.encode ses)
       void $ execute conn "INSERT INTO sessions (session_id, session_data) VALUES (?, ?) ON CONFLICT (session_id) DO UPDATE SET session_data = EXCLUDED.session_data" (sid  , sessionData)
       return ()
 
     -- | Retrieves a session from the PostgreSQL store based on the given session ID.
-    sessionGet :: Connection -> SessionId -> IO (Maybe Session)
-    sessionGet conn sid = do
+    sessionGet :: Pool Connection -> SessionId -> IO (Maybe Session)
+    sessionGet pool sid = withResource pool $ \conn -> do
         [Only sessionData] <- query conn "SELECT session_data FROM sessions WHERE session_id = ?" (Only { fromOnly = sid })
         case A.decode sessionData of
           Just session -> return (Just session)
           Nothing      -> return Nothing
 
     -- | Deletes a session from the PostgreSQL store.
-    sessionDelete :: Connection -> SessionId -> IO ()
-    sessionDelete conn sid = do
+    sessionDelete :: Pool Connection -> SessionId -> IO ()
+    sessionDelete pool sid = withResource pool $ \conn -> do
       void $ execute conn "DELETE FROM sessions WHERE session_id = ?" (Only sid)
 
     -- | Clears all sessions from the PostgreSQL store older than the provided age in seconds.
-    sessionCleanup :: Connection -> Integer -> IO ()
-    sessionCleanup conn age = do
+    sessionCleanup :: Pool Connection -> Integer -> IO ()
+    sessionCleanup pool age = withResource pool $ \conn -> do
       void $ execute conn "DELETE FROM sessions WHERE EXTRACT(EPOCH FROM (NOW() - created_at)) > ?" (Only age)

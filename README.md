@@ -9,7 +9,8 @@ SPDX-License-Identifier: MIT
 This is a client testbed and demonstrator written in haskell for OpenID Connect. It can be used as a showcase or as a basis for learning OpenID Connect and give various implementation hints. This is an ongoing project and by no means complete in support of the related standards.
 
 
-It keeps the session store server side and supports memory, redis/valkey and postgreSQL.
+It keeps the session store server side and supports memory storage, redis/valkey storage and postgreSQL storage and a
+session cleanup of old sessions.
 
 
 It contains the following routes:
@@ -31,7 +32,7 @@ Why Haskell? Haskell is a lazy, purely functional, statically typed language use
 - [Haskell OpenID Connect and OpenID Federation client testbed](#haskell-openid-connect-and-openid-federation-client-testbed)
   - [Table of Contents](#table-of-contents)
   - [Installation and Requirements](#installation-and-requirements)
-  - [Quick start instructions](#quick-start-instructions)
+  - [Quick start instructions for the testbed](#quick-start-instructions-for-the-testbed)
   - [Usage](#usage)
   - [Known issues](#known-issues)
   - [Support](#support)
@@ -51,7 +52,7 @@ The testbed is developed in haskell and uses the [stack](https://docs.haskellsta
 * To build the project, runt `stack build`
 * To execute the project, run `stack exec digg-oidc-example`
 
-## Quick start instructions
+## Quick start instructions for the testbed
 
 The quickest way to get the testbed up and running is to run it on your local computer and have the needed key-value-store running as a docker container.
 
@@ -74,19 +75,15 @@ You should now be able to login through your OP. The testbed relies on a http-on
 
 ## Usage
 
-To get the testbed up and running just follow the quick start. The executable currently demonstrates the Authorization Code Flow and
-the Refresh Token scenarios and how to use a Redis compatible storage. The entire solution is not yet finalized.
-
-
 The library is meant as a starter to implement or show how to implement the functionality needed for the server side. The goal is to have a fully functional solution, albeit it might take some time.
 
 ## Known issues
 
 The following issues and limits exists:
 
-* Supports Discovery, Authorization Code Flow, Token Refresh and RP initiated logout only.
-* Supports a redis compatible key/value store, memory and postgreSQL but it is easy to add another storage solution.
-* Supports a cleanup of old sessions.
+* Supports server side Discovery, Authorization Code Flow, Token Refresh and RP initiated logout.
+* Supports a redis compatible key/value storage, memory storage and postgreSQL storage. It is easy to add another storage solution.
+* Supports cleanup of old sessions.
 
 ## Support
 

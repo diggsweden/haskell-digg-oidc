@@ -48,6 +48,7 @@ library
                       , jose-jwt
                       , containers
                       , postgresql-simple
+                      , resource-pool
   ghc-options:         -Wall
                        -Wcompat
                        -Widentities
