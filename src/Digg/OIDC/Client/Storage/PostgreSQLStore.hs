@@ -10,22 +10,21 @@
 --    Provides functionality for storing OIDC session data in PostgreSQL.
 module Digg.OIDC.Client.Storage.PostgreSQLStore (postgreSQLStorage) where
 
-import           Control.Exception          (catch, throwIO)
-import           Control.Monad              (void)
-import           Control.Monad.IO.Class     (MonadIO, liftIO)
-import qualified Data.Aeson                 as A
-import           Data.ByteString            (toStrict)
-import           Database.PostgreSQL.Simple (ConnectInfo (..), Connection,
-                                             Only (..), close, connect, execute,
-                                             query)
-import           Digg.OIDC.Client.Session   (Session, SessionId,
-                                             SessionStorage (..))
+import           Control.Exception               (catch, throwIO)
+import           Control.Monad                   (void)
+import           Control.Monad.IO.Class          (MonadIO, liftIO)
+import qualified Data.Aeson                      as A
+import           Data.ByteString                 (toStrict)
+import           Database.PostgreSQL.Simple      (ConnectInfo (..), Connection,
+                                                  Only (..), close, connect,
+                                                  execute, query)
+import           Digg.OIDC.Client.Session        (Session, SessionId,
+                                                  SessionStorage (..))
 
-import           Control.Concurrent         (getNumCapabilities)
-import           Data.Pool                  (Pool, defaultPoolConfig,
-                                             newPool,
-                                             withResource)
-
+import           Control.Concurrent              (getNumCapabilities)
+import           Data.Pool                       (Pool, defaultPoolConfig,
+                                                  newPool, withResource)
+import           Digg.OIDC.Client.Storage.Random (generatePRNG, createSystemDRG, generateSystemDRG)
 
 -- | Handles IO errors by rethrowing them as exceptions.
 handleIOError :: IOError -> IO a
@@ -57,13 +56,12 @@ destroyConn = close
 postgreSQLStorage :: (MonadIO m) => ConnectInfo     -- ^ The PostgreSQL connection info
   -> m (SessionStorage IO)                          -- ^ The initialized session store
 postgreSQLStorage connInfo = do
-
     n <- liftIO $ getNumCapabilities
     liftIO $ putStrLn $ "Creating PostgreSQL connection pool with " ++ show n ++ " connections."
     pool <- liftIO $ catch (newPool $ defaultPoolConfig (createConn connInfo) destroyConn 30 n) handleIOError
-
+    sdrg <- liftIO $ createSystemDRG
     return SessionStorage
-      { sessionStoreGenerate = undefined,
+      { sessionStoreGenerate = generateSystemDRG sdrg,
         sessionStoreSave = sessionSave pool,
         sessionStoreGet = sessionGet pool,
         sessionStoreDelete = sessionDelete pool,

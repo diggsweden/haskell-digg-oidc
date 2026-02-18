@@ -4,9 +4,9 @@ SPDX-FileCopyrightText: 2023 Digg - Agency for Digital Government
 SPDX-License-Identifier: MIT
 -->
 
-# Haskell OpenID Connect and OpenID Federation client testbed
+# Haskell OpenID Connect client
 
-This is a client testbed and demonstrator written in haskell for OpenID Connect. It can be used as a showcase or as a basis for learning OpenID Connect and give various implementation hints. This is an ongoing project and by no means complete in support of the related standards.
+This is an OpenID client library and a server side testbed written in haskell. This is an ongoing project and by no means complete in support of the related standards.
 
 
 It keeps the session store server side and supports memory storage, redis/valkey storage and postgreSQL storage and a
@@ -29,21 +29,9 @@ Why Haskell? Haskell is a lazy, purely functional, statically typed language use
 
 ## Table of Contents
 
-- [Haskell OpenID Connect and OpenID Federation client testbed](#haskell-openid-connect-and-openid-federation-client-testbed)
-  - [Table of Contents](#table-of-contents)
-  - [Installation and Requirements](#installation-and-requirements)
-  - [Quick start instructions for the testbed](#quick-start-instructions-for-the-testbed)
-  - [Usage](#usage)
-  - [Known issues](#known-issues)
-  - [Support](#support)
-  - [Contributing](#contributing)
-  - [License](#license)
-  - [Maintainers](#maintainers)
-  - [Credits and References](#credits-and-references)
+## Installation of the testbed
 
-## Installation and Requirements
-
-The testbed is developed in haskell and uses the [stack](https://docs.haskellstack.org/en/stable/install_and_upgrade/) build system and verified to work with GHC 9.10.3.
+The testbed uses the [stack](https://docs.haskellstack.org/en/stable/install_and_upgrade/) build system and verified to work with GHC 9.10.3.
 
 * Install the [stack](https://docs.haskellstack.org/en/stable/install_and_upgrade/) build system
 * Clone the repository
@@ -73,17 +61,18 @@ EXAMPLE_CLIENT_ID=thenameofyourclient
 
 You should now be able to login through your OP. The testbed relies on a http-only secure cookie (**session**) holding a session identity to be able to track the session. Session data is stored in the key-value-store.
 
-## Usage
+## OIDC Client library
 
-The library is meant as a starter to implement or show how to implement the functionality needed for the server side. The goal is to have a fully functional solution, albeit it might take some time.
+The library implements support for a server side OIDC Client.
 
-## Known issues
+## Implemented functionality
 
-The following issues and limits exists:
+The following functionality is implemented:
 
 * Supports server side Discovery, Authorization Code Flow, Token Refresh and RP initiated logout.
-* Supports a redis compatible key/value storage, memory storage and postgreSQL storage. It is easy to add another storage solution.
-* Supports cleanup of old sessions.
+* Supports a session storage with a redis compatible key/value storage, memory storage or postgreSQL storage.
+* Supports cleanup of old sessions based on age of the session.
+* Uses the system /dev/random device for id generation. It can be overridden.
 
 ## Support
 

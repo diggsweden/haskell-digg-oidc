@@ -25,6 +25,7 @@ library
                       , Digg.OIDC.Client.Storage.RedisStore
                       , Digg.OIDC.Client.Storage.MemoryStore
                       , Digg.OIDC.Client.Storage.PostgreSQLStore
+                      , Digg.OIDC.Client.Storage.Random
                       , Digg.OIDC.Client.Discovery.Provider
                       , Digg.OIDC.Client.Discovery
                       , Digg.OIDC.Client.Tokens
@@ -49,6 +50,9 @@ library
                       , containers
                       , postgresql-simple
                       , resource-pool
+                      , random-bytestring
+                      , base64-bytestring
+                      , crypton
   ghc-options:         -Wall
                        -Wcompat
                        -Widentities
@@ -65,7 +69,7 @@ executable digg-oidc-example
   other-modules:
   default-language:    Haskell2010
   build-depends:       base >= 4.7 && < 5
-                      , cryptonite
+                      , crypton
                       , mtl
                       , bytestring
                       , aeson

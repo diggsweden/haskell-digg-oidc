@@ -8,12 +8,13 @@
 --    Provides functionality for storing OIDC session data in a memory map.
 module Digg.OIDC.Client.Storage.MemoryStore (memoryStorage) where
 
-import           Control.Monad.IO.Class   (MonadIO, liftIO)
+import           Control.Monad.IO.Class          (MonadIO, liftIO)
 import           Data.IORef
-import           Data.Map                 (Map)
-import qualified Data.Map                 as M
-import           Digg.OIDC.Client.Session (Session, SessionId,
-                                           SessionStorage (..))
+import           Data.Map                        (Map)
+import qualified Data.Map                        as M
+import           Digg.OIDC.Client.Session        (Session, SessionId,
+                                                  SessionStorage (..))
+import           Digg.OIDC.Client.Storage.Random (generatePRNG, createSystemDRG, generateSystemDRG)
 
 type SessionMap = IORef (Map SessionId Session)
 
@@ -23,9 +24,9 @@ createStorage = newIORef M.empty
 memoryStorage :: (MonadIO m) => m (SessionStorage IO)
 memoryStorage = do
     sm <- liftIO createStorage
-
+    sdrg <- liftIO createSystemDRG
     return SessionStorage
-      { sessionStoreGenerate = undefined,
+      { sessionStoreGenerate = generateSystemDRG sdrg,
         sessionStoreSave = sessionSave sm,
         sessionStoreGet = sessionGet sm,
         sessionStoreDelete = sessionDelete sm,
@@ -51,6 +52,9 @@ memoryStorage = do
         atomicModifyIORef' smap $ \m -> (M.delete sid m, ())
 
     -- | Clears all sessions from the memory store older than the provided age in seconds.
+    --
+    -- Not implemented for the in-memory store yet
+    --
     sessionCleanup :: SessionMap -> Integer -> IO ()
-    sessionCleanup smap age = do
+    sessionCleanup _ _ = do
         return ()

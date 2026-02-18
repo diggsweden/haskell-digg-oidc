@@ -9,18 +9,19 @@
 --    Provides functionality for storing OIDC session data in Redis.
 module Digg.OIDC.Client.Storage.RedisStore (redisStorage) where
 
-import           Control.Exception        (catch, throwIO)
-import           Control.Monad            (void)
-import           Control.Monad.IO.Class   (MonadIO, liftIO)
-import qualified Data.Aeson               as A
-import           Data.ByteString          (fromStrict, toStrict)
-import           Data.ByteString.Char8    (ByteString, pack)
-import           Database.Redis           (ConnectInfo (..), Connection,
-                                           RedisCtx, checkedConnect,
-                                           defaultConnectInfo, del, get,
-                                           runRedis, sendRequest, set)
-import           Digg.OIDC.Client.Session (Session, SessionId,
-                                           SessionStorage (..))
+import           Control.Exception               (catch, throwIO)
+import           Control.Monad                   (void)
+import           Control.Monad.IO.Class          (MonadIO, liftIO)
+import qualified Data.Aeson                      as A
+import           Data.ByteString                 (fromStrict, toStrict)
+import           Data.ByteString.Char8           (ByteString, pack)
+import           Database.Redis                  (ConnectInfo (..), Connection,
+                                                  RedisCtx, checkedConnect,
+                                                  defaultConnectInfo, del, get,
+                                                  runRedis, sendRequest, set)
+import           Digg.OIDC.Client.Session        (Session, SessionId,
+                                                  SessionStorage (..))
+import           Digg.OIDC.Client.Storage.Random (generatePRNG, createSystemDRG, generateSystemDRG)
 
 -- | Function to create a Redis connection info from a host string
 redisConnectInfo :: String -> ConnectInfo
@@ -53,8 +54,10 @@ redisStorage redis expTime = do
 
     conn <- liftIO $ catch (checkedConnect (redisConnectInfo redis)) handleIOError
 
+    sdrg <- liftIO createSystemDRG
+
     return SessionStorage
-      { sessionStoreGenerate = undefined,
+      { sessionStoreGenerate = generateSystemDRG sdrg,
         sessionStoreSave = sessionSave conn,
         sessionStoreGet = sessionGet conn,
         sessionStoreDelete = sessionDelete conn,
