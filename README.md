@@ -6,14 +6,13 @@ SPDX-License-Identifier: MIT
 
 # Haskell OpenID Connect client
 
-This is an OpenID client library and a server side testbed written in haskell. This is an ongoing project and by no means complete in support of the related standards.
+This is an OpenID Connect client library (Digg.OIDC) and a server side testbed (example directory) written in haskell. This is an ongoing project and by no means complete in support of the related standards.
 
 
-It keeps the session store server side and supports memory storage, redis/valkey storage and postgreSQL storage and a
-session cleanup of old sessions.
+The library keeps a session store that is located server side and supports three different implementations; memory storage, redis/valkey storage and postgreSQL storage. It also has an implementation for cleaning up sessions based on age.
 
 
-It contains the following routes:
+The server side testbed contains the following routes:
 
 |Method|Route|Description|
 |------|-----|-----------|
@@ -40,11 +39,13 @@ The testbed uses the [stack](https://docs.haskellstack.org/en/stable/install_and
 * To build the project, runt `stack build`
 * To execute the project, run `stack exec digg-oidc-example`
 
-## Quick start instructions for the testbed
+If you do not have postgreSQL libraries installed you need to install them. If the build fails it will tell you what is missing on your machine.
+
+### Quick start instructions for the testbed
 
 The quickest way to get the testbed up and running is to run it on your local computer and have the needed key-value-store running as a docker container.
 
-* Follow the **installation and requirements section**. This makes sure you can build and execute the testbed.
+* Build the testbed according to the **Installation of the testbed** chapter above.
 * Use docker to start up a redis or a valkey storage on your computer. Make sure you expose the 6379 port on your localhost. Dockerhub has both distributions.
 * Set up the following environment variables:
 
@@ -63,9 +64,9 @@ You should now be able to login through your OP. The testbed relies on a http-on
 
 ## OIDC Client library
 
-The library implements support for a server side OIDC Client.
+The library implements support for a server side OIDC Client (Digg.OIDC)
 
-## Implemented functionality
+### Implemented functionality
 
 The following functionality is implemented:
 
