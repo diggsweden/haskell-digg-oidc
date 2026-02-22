@@ -139,7 +139,7 @@ main = do
   mgr <- newManager tlsManagerSettings
   provider <- liftIO $ discover issuer mgr
   pPrint $ metadata provider
-  let oidc = createOIDC client secret (toStrict (fromStrict (decodeUtf8 baseUrl) <> "/login/callback")) (Just (toStrict (fromStrict (decodeUtf8 baseUrl) <> "/logout/callback"))) provider
+  let oidc = createOIDC client secret (toStrict (fromStrict (decodeUtf8 baseUrl) <> "/login/callback")) (Just (toStrict (fromStrict (decodeUtf8 baseUrl) <> "/logout/callback"))) Nothing provider
 
   -- Start the server
   let port = getPort baseUrl

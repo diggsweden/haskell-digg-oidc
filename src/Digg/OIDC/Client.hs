@@ -20,7 +20,8 @@ data OIDC = OIDC
     oidcClientSecret      :: Text,     -- ^ The client secret as defined by the OIDC provider.
     oidcRedirectUri       :: Text,     -- ^ The redirect URI.
     oidcLogoutRedirectUri :: Maybe Text, -- ^ The logout redirect URI.
-    oidcProvider          :: Provider  -- ^ The OIDC provider configuration.
+    oidcProvider          :: Provider,  -- ^ The OIDC provider configuration.
+    oidcAudience          :: Maybe Text -- ^ The audience to verify in the Access Token.  
   }
 
 -- | Creates an OIDC (OpenID Connect) client configuration with the given parameters.
@@ -28,15 +29,17 @@ createOIDC :: Text  -- ^ The client id as defined by the OIDC provider.
   -> Text           -- ^ The client secret as defined by the OIDC provider.
   -> Text           -- ^ The redirect URI.
   -> Maybe Text     -- ^ The logout redirect URI.
+  -> Maybe Text     -- ^ The audience to verify in the Access Token.
   -> Provider       -- ^ The OIDC provider configuration.
   -> OIDC           -- ^ The OIDC client configuration.
-createOIDC clientId clientSecret redirectURI logoutRedirectURI provider =
+createOIDC clientId clientSecret redirectURI logoutRedirectURI audience provider =
   OIDC
     { oidcClientId = clientId,
       oidcClientSecret = clientSecret,
       oidcRedirectUri = redirectURI,
       oidcLogoutRedirectUri = logoutRedirectURI,
-      oidcProvider = provider
+      oidcProvider = provider,
+      oidcAudience = audience
     }
 
 -- | The 'OIDCException' data type represents exceptions that can occur

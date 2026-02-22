@@ -41,6 +41,7 @@ import           Data.Aeson                          (FromJSON (parseJSON),
 import           Data.ByteString                     (ByteString)
 import qualified Data.ByteString.Lazy.Char8          as BL
 import           Data.Either                         (partitionEithers)
+import           Data.Maybe                          (fromMaybe)
 import           Data.Text                           (Text, pack)
 import           Data.Text.Encoding                  (encodeUtf8)
 import           Data.Time.Clock.POSIX               (getPOSIXTime)
@@ -200,15 +201,15 @@ validateIdClaims :: Text -- ^ The expected issuer
 validateIdClaims issuer client n claims = do
 
     now <- getCurrentIntDate
-    
-    unless (iss claims == issuer)
-        $ throwM $ ValidationException $ "Issuer in token \"" <> iss claims <> "\" is different than expected issuer \"" <> issuer <> "\""
 
---    unless (client `elem` aud claims)
---        $ throwM $ ValidationException $ "Our client \"" <> client <> "\" isn't contained in the token's audience " <> (pack . show) (aud claims)
+    unless (iss claims == issuer)
+        $ throwM $ ValidationException $ "Issuer in identity token \"" <> iss claims <> "\" is different than expected issuer \"" <> issuer <> "\""
+
+    unless (client `elem` aud claims)
+        $ throwM $ ValidationException $ "Our client identity \"" <> client <> "\" isn't contained in the identity token's audience " <> (pack . show) (aud claims)
 
     unless (now < exp claims)
-        $ throwM $ ValidationException "Received idtoken has expired"
+        $ throwM $ ValidationException "Received identity token has expired"
 
     unless (id_nonce (other_claims claims) == n)
         $ throwM $ ValidationException "Nonce mismatch"
@@ -224,7 +225,7 @@ validateIdClaims issuer client n claims = do
 --
 -- If not it throws a 'ValidationException'.
 validateAccessClaims :: Text  -- ^ The expected issuer
-  -> Text                    -- ^ The expected audience
+  -> Maybe Text                     -- ^ The expected audience
   -> AccessTokenClaims a            -- ^ The token claims
   -> IO ()                    -- ^ Everything went well if we return, maybe we should return the claims for continuation purposes
 validateAccessClaims issuer audience claims = do
@@ -234,8 +235,8 @@ validateAccessClaims issuer audience claims = do
     unless (iss claims == issuer)
         $ throwM $ ValidationException $ "Issuer from token \"" <> iss claims <> "\" is different than expected issuer \"" <> issuer <> "\""
 
---    unless (audience `elem` aud claims)
---      $ throwM $ ValidationException $ "our audience \"" <> audience <> "\" isn't contained in the token's audience " <> (pack . show) (aud claims)
+    unless (maybe True (`elem` aud claims) audience)
+        $ throwM $ ValidationException $ "our audience \"" <> fromMaybe "" audience <> "\" isn't contained in the token's audience " <> (pack . show) (aud claims)
 
     unless (now < exp claims)
         $ throwM $ ValidationException "Received accesstoken has expired"
