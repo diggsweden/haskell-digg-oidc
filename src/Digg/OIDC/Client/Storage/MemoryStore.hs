@@ -14,7 +14,7 @@ import           Data.Map                        (Map)
 import qualified Data.Map                        as M
 import           Digg.OIDC.Client.Session        (Session, SessionId,
                                                   SessionStorage (..))
-import           Digg.OIDC.Client.Storage.Random (generatePRNG, createSystemDRG, generateSystemDRG)
+import           Digg.OIDC.Client.Storage.Random (createSystemDRG, generateSystemDRG)
 
 type SessionMap = IORef (Map SessionId Session)
 

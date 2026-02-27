@@ -24,7 +24,7 @@ import           Digg.OIDC.Client.Session        (Session, SessionId,
 import           Control.Concurrent              (getNumCapabilities)
 import           Data.Pool                       (Pool, defaultPoolConfig,
                                                   newPool, withResource)
-import           Digg.OIDC.Client.Storage.Random (generatePRNG, createSystemDRG, generateSystemDRG)
+import           Digg.OIDC.Client.Storage.Random (createSystemDRG, generateSystemDRG)
 
 -- | Handles IO errors by rethrowing them as exceptions.
 handleIOError :: IOError -> IO a

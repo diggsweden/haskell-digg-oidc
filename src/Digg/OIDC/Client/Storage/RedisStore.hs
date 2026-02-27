@@ -21,7 +21,7 @@ import           Database.Redis                  (ConnectInfo (..), Connection,
                                                   runRedis, sendRequest, set)
 import           Digg.OIDC.Client.Session        (Session, SessionId,
                                                   SessionStorage (..))
-import           Digg.OIDC.Client.Storage.Random (generatePRNG, createSystemDRG, generateSystemDRG)
+import           Digg.OIDC.Client.Storage.Random (createSystemDRG, generateSystemDRG)
 
 -- | Function to create a Redis connection info from a host string
 redisConnectInfo :: String -> ConnectInfo
