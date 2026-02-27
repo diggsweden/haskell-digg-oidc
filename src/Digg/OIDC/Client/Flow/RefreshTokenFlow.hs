@@ -11,7 +11,7 @@
 --    Provides functionality for refreshing a token in an ongoing session.
 module Digg.OIDC.Client.Flow.RefreshTokenFlow (refreshToken) where
 
-import           Control.Monad                       (when, unless)
+import           Control.Monad                       (unless, when)
 import           Control.Monad.Catch                 (MonadCatch,
                                                       MonadThrow (throwM))
 import           Control.Monad.IO.Class              (MonadIO (liftIO))
@@ -21,15 +21,17 @@ import           Data.Maybe                          (fromJust, isJust,
 import           Data.Text                           (pack)
 import           Data.Text.Encoding                  (encodeUtf8)
 import           Digg.OIDC.Client                    (OIDC (..),
-                                                      OIDCException (InvalidState, ValidationException, UnsupportedOperation))
+                                                      OIDCException (InvalidState, UnsupportedOperation, ValidationException))
+import           Digg.OIDC.Client.Claims             (IdTokenClaims)
 import           Digg.OIDC.Client.Discovery.Provider (Provider (..),
                                                       ProviderMetadata (..))
-import           Digg.OIDC.Client.Internal           (TokensResponse (..), isAnElementOf)
+import           Digg.OIDC.Client.Internal           (TokensResponse (..),
+                                                      isAnElementOf)
 import           Digg.OIDC.Client.Session            (Session (..), SessionId,
                                                       SessionStorage (..))
-import           Digg.OIDC.Client.Tokens             (validateIdClaims,
-                                                      validateToken,
-                                                      IdTokenClaims, AccessTokenJWT)
+import           Digg.OIDC.Client.Tokens             (AccessTokenJWT,
+                                                      validateIdClaims,
+                                                      validateToken)
 import           Digg.OIDC.Types                     (Address (..), Code)
 import           Jose.Jwt                            (Jwt (..))
 import           Network.HTTP.Client                 (Manager, Request (..),

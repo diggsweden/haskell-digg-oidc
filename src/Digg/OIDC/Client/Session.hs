@@ -24,8 +24,8 @@ import           Data.Maybe              (isJust, isNothing)
 import           Data.Text               (Text)
 import           Data.Text.Encoding      (decodeUtf8, encodeUtf8)
 import           Digg.OIDC.Client        (OIDC, OIDCException (InvalidState))
-import           Digg.OIDC.Client.Tokens (AccessTokenClaims, AccessTokenJWT,
-                                          IdTokenClaims, IdTokenJWT,
+import           Digg.OIDC.Client.Claims (AccessTokenClaims, IdTokenClaims)
+import           Digg.OIDC.Client.Tokens (AccessTokenJWT, IdTokenJWT,
                                           RefreshTokenJWT, validateToken)
 import           Digg.OIDC.Types         (Code, Nonce, State)
 import           GHC.Generics            (Generic)

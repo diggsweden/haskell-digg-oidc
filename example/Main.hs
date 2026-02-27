@@ -49,12 +49,12 @@ import           Digg.OIDC.Client.Session                    (SessionStorage (..
                                                               getAccessToken,
                                                               getIdClaims,
                                                               getIdToken)
--- import           Digg.OIDC.Client.Storage.MemoryStore        (memoryStorage)
 import           Digg.OIDC.Client.Storage.RedisStore         (redisStorage)
-import           Digg.OIDC.Client.Tokens                     (AccessTokenClaims,
-                                                              AccessTokenJWT,
+import           Digg.OIDC.Client.Tokens                     (AccessTokenJWT,
+                                                              IdTokenJWT)
+
+import           Digg.OIDC.Client.Claims                     (AccessTokenClaims,
                                                               IdTokenClaims,
-                                                              IdTokenJWT,
                                                               NoExtraClaims)
 import           Digg.OIDC.Types                             (Issuer)
 import           GHC.Exception.Type                          (SomeException)

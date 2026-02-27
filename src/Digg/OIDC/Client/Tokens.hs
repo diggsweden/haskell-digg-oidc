@@ -14,17 +14,9 @@
 --    The module defines types and functions for handling OIDC tokens and validations of standard claims as well
 --    as custom claims.
 module Digg.OIDC.Client.Tokens
-  ( Claims (..),
-    IdClaims (..),
-    AccessClaims (..),
-    RolesClaims (..),
-    ResourceAccessClaims (..),
-    NoExtraClaims (..),
-    validateToken,
+  ( validateToken,
     validateAccessClaims,
     validateIdClaims,
-    IdTokenClaims,
-    AccessTokenClaims,
     IdTokenJWT,
     AccessTokenJWT,
     RefreshTokenJWT
@@ -45,14 +37,10 @@ import           Data.Text                           (Text, pack)
 import           Data.Time.Clock.POSIX               (getPOSIXTime)
 import           Digg.OIDC.Client                    (OIDC (..),
                                                       OIDCException (..))
-import           Digg.OIDC.Client.Claims             (AccessClaims (..),
-                                                      AccessTokenClaims,
+import           Digg.OIDC.Client.Claims             (AccessTokenClaims,
                                                       Claims (..),
                                                       IdClaims (..),
-                                                      IdTokenClaims,
-                                                      NoExtraClaims (..),
-                                                      ResourceAccessClaims (..),
-                                                      RolesClaims (..))
+                                                      IdTokenClaims)
 import           Digg.OIDC.Client.Discovery.Provider (Algorithm (..),
                                                       Provider (..),
                                                       ProviderMetadata (..))

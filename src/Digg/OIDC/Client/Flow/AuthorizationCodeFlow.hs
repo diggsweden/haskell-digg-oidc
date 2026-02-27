@@ -11,7 +11,7 @@
 --    Provides functionality for the authorization flow and initiate an ongoing session.
 module Digg.OIDC.Client.Flow.AuthorizationCodeFlow (initiateAuthorizationRequest, authorizationGranted) where
 
-import           Control.Monad                       (when, unless)
+import           Control.Monad                       (unless, when)
 import           Control.Monad.Catch                 (MonadCatch,
                                                       MonadThrow (throwM))
 import           Control.Monad.IO.Class              (MonadIO (liftIO))
@@ -22,10 +22,12 @@ import           Data.Maybe                          (isJust, isNothing)
 import           Data.Text                           (pack, unpack)
 import           Data.Text.Encoding                  (encodeUtf8)
 import           Digg.OIDC.Client                    (OIDC (..),
-                                                      OIDCException (InvalidState, ValidationException, UnsupportedOperation))
+                                                      OIDCException (InvalidState, UnsupportedOperation, ValidationException))
+import           Digg.OIDC.Client.Claims             (AccessTokenClaims, IdTokenClaims, NoExtraClaims)
 import           Digg.OIDC.Client.Discovery.Provider (Provider (..),
                                                       ProviderMetadata (..))
-import           Digg.OIDC.Client.Internal           (TokensResponse (..), isAnElementOf)
+import           Digg.OIDC.Client.Internal           (TokensResponse (..),
+                                                      isAnElementOf)
 import           Digg.OIDC.Client.Session            (Session (..), SessionId,
                                                       SessionStorage (..))
 import qualified Digg.OIDC.Client.Tokens             as T
@@ -39,7 +41,6 @@ import           Network.HTTP.Client                 (Manager, Request (..),
                                                       urlEncodedBody)
 import           Network.URI                         (URI (..))
 import           Prelude                             hiding (exp)
-import Digg.OIDC.Client.Tokens (AccessTokenClaims)
 
 -- |  Creates the URL for the authorization request.
 --    This function constructs the URL that the client needs to redirect the user to in order to
@@ -82,7 +83,7 @@ createAuthorizationRequestURL oidc scope state nonce extra = do
       ]
 
 -- | Initiates an authorization request in the Authorization Code Flow.
--- 
+--
 -- This function constructs the authorization request URI that the user
 -- should be redirected to in order to initiate the OAuth 2.0 Authorization
 -- Code Flow. It takes care of storing the session information and generating
@@ -121,7 +122,7 @@ authorizationGranted :: (MonadIO m, MonadCatch m, FromJSON a) => SessionStorage 
   -> OIDC       -- ^ The OIDC configuration
   -> State      -- ^ The state
   -> Code       -- ^ The authorization code
-  -> m (T.IdTokenClaims a)
+  -> m (IdTokenClaims a)
 authorizationGranted storage sid mgr oidc state code = do
 
     -- Verify that the provider supports authorization code grant type
@@ -138,7 +139,7 @@ authorizationGranted storage sid mgr oidc state code = do
     liftIO $ T.validateIdClaims (providerIssuer . metadata $ oidcProvider oidc) (oidcClientId oidc) (sessionNonce session) claims
 
     -- Validate the Access token
-    claimsA::(AccessTokenClaims T.NoExtraClaims) <- T.validateToken oidc $ tokensResponseAccessToken tr
+    claimsA::(AccessTokenClaims NoExtraClaims) <- T.validateToken oidc $ tokensResponseAccessToken tr
     liftIO $ T.validateAccessClaims (providerIssuer . metadata $ oidcProvider oidc) (oidcAudience oidc) claimsA
 
     -- Update the session
