@@ -239,8 +239,8 @@ run' = do
     case sid of
       Just s -> do
         AuthServerEnv {..} <- lift ask
-        tokens <- liftIO $ catch (Right <$> refreshToken storage (encodeUtf8 s) mgr oidc) handleError
-        blaze $ htmlSuccess tokens
+        _ <- liftIO $ catch (Right <$> refreshToken storage (encodeUtf8 s) mgr oidc) handleError
+        redirect "/fetch"
       Nothing -> status404 "No current ongoing session found"
 
   -- | Handler for the "/fetch" route. It returns the id and access tokens and their claims

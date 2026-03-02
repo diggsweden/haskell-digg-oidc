@@ -15,14 +15,14 @@ import           Control.Monad                       (unless, when)
 import           Control.Monad.Catch                 (MonadCatch,
                                                       MonadThrow (throwM))
 import           Control.Monad.IO.Class              (MonadIO (liftIO))
-import           Data.Aeson                          (FromJSON, eitherDecode)
+import           Data.Aeson                          (eitherDecode)
 import           Data.Maybe                          (fromJust, isJust,
                                                       isNothing)
 import           Data.Text                           (pack)
 import           Data.Text.Encoding                  (encodeUtf8)
 import           Digg.OIDC.Client                    (OIDC (..),
                                                       OIDCException (InvalidState, UnsupportedOperation, ValidationException))
-import           Digg.OIDC.Client.Claims             (IdTokenClaims)
+import           Digg.OIDC.Client.Claims             (IdTokenClaims, AccessTokenClaims, NoExtraClaims)
 import           Digg.OIDC.Client.Discovery.Provider (Provider (..),
                                                       ProviderMetadata (..))
 import           Digg.OIDC.Client.Internal           (TokensResponse (..),
@@ -31,7 +31,7 @@ import           Digg.OIDC.Client.Session            (Session (..), SessionId,
                                                       SessionStorage (..))
 import           Digg.OIDC.Client.Tokens             (AccessTokenJWT,
                                                       validateIdClaims,
-                                                      validateToken)
+                                                      validateToken, validateAccessClaims)
 import           Digg.OIDC.Types                     (Address (..), Code)
 import           Jose.Jwt                            (Jwt (..))
 import           Network.HTTP.Client                 (Manager, Request (..),
@@ -44,11 +44,11 @@ import           Prelude                             hiding (exp)
 --
 -- This function takes a session storage, session ID, HTTP manager, OIDC configuration
 -- to refresh the token and return the token claims.
-refreshToken :: (MonadIO m, MonadCatch m, FromJSON a) => SessionStorage m   -- ^ The session storage
+refreshToken :: (MonadIO m, MonadCatch m) => SessionStorage m   -- ^ The session storage
   -> SessionId -- ^ The session identifier to refresh
   -> Manager   -- ^ The HTTP manager
   -> OIDC      -- ^ The OIDC configuration
-  -> m (IdTokenClaims a) -- ^ The token claims
+  -> m () -- ^ The token claims
 refreshToken storage sid mgr oidc = do
 
     -- Verify that the provider supports authorization code grant type
@@ -61,8 +61,12 @@ refreshToken storage sid mgr oidc = do
     tr <- liftIO $ callTokenEndpoint (sessionCode session) (sessionRefreshToken session)
 
     -- Validate the ID token
-    claims <- validateToken oidc $ tokensResponseIdToken tr
-    liftIO $ validateIdClaims (providerIssuer . metadata $ oidcProvider oidc) (oidcClientId oidc) (sessionNonce session) claims
+    iclaims :: (IdTokenClaims NoExtraClaims) <- validateToken oidc $ tokensResponseIdToken tr
+    liftIO $ validateIdClaims (providerIssuer . metadata $ oidcProvider oidc) (oidcClientId oidc) (sessionNonce session) iclaims
+
+    -- Validate the Access token
+    aclaims :: (AccessTokenClaims NoExtraClaims) <- validateToken oidc $ tokensResponseAccessToken tr
+    liftIO $ validateAccessClaims (providerIssuer . metadata $ oidcProvider oidc) (oidcAudience oidc) aclaims
 
     -- Update the session with the new tokens
     sessionStoreSave storage sid $
@@ -74,7 +78,7 @@ refreshToken storage sid mgr oidc = do
           sessionRefreshToken = tokensResponseRefreshToken tr
         }
 
-    return claims
+    return ()
 
   where
 
