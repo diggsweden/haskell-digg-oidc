@@ -93,6 +93,7 @@ validateToken oidc jwt' = do
 
     parsePayload:: (MonadIO m, FromJSON a) => ByteString -> m (Claims a)
     parsePayload payload = do
+      liftIO $ putStrLn $ "Decoding payload: " <> show payload
       case eitherDecode $ BL.fromStrict payload of
         Right x  -> return x
         Left err -> liftIO . throwIO . ValidationException $ pack err

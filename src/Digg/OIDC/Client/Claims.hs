@@ -25,17 +25,17 @@ module Digg.OIDC.Client.Claims
   )
 where
 
-import           Control.Applicative                 (optional, (<|>))
-import           Data.Aeson                          (FromJSON (parseJSON),
-                                                      Value (..), 
-                                                      withObject, (.:), (.:?))
-import           Data.ByteString                     (ByteString)
-import           Data.Map.Strict                     (Map)
-import           Data.Text                           (Text)
-import           Data.Text.Encoding                  (encodeUtf8)
-import           GHC.Generics                        (Generic)
-import           Jose.Jwt                            (IntDate (..))
-import           Prelude                             hiding (exp)
+import           Control.Applicative (optional, (<|>))
+import           Data.Aeson          (FromJSON (parseJSON), Value (..),
+                                      withObject, (.:), (.:?))
+import           Data.ByteString     (ByteString)
+import           Data.Map.Strict     (Map)
+import           Data.Maybe          (fromMaybe)
+import           Data.Text           (Text)
+import           Data.Text.Encoding  (encodeUtf8)
+import           GHC.Generics        (Generic)
+import           Jose.Jwt            (IntDate (..))
+import           Prelude             hiding (exp)
 
 -- | Type aliases for the 'Claims' data type with specific additional claims for the ID token.
 type IdTokenClaims a = Claims (IdClaims a)
@@ -63,7 +63,7 @@ instance (FromJSON a) => FromJSON (Claims a) where
     Claims
       <$> o .: "iss"
       <*> o .: "sub"
-      <*> ((o .: "aud") <|> ((:[]) <$> (o .: "aud")))
+      <*> (fromMaybe [] <$> ((o .:? "aud") <|> (fmap (:[]) <$> (o .:? "aud"))))
       <*> o .: "exp"
       <*> o .: "iat"
       <*> o .: "jti"
@@ -127,12 +127,12 @@ instance FromJSON RolesClaims where
 -- which is a map of resource names to their corresponding 'RolesClaims'.
 data ResourceAccessClaims a = ResourceAccessClaims
   { ra_resource_access :: Map Text RolesClaims,   -- ^ The map of resource access in the claim
-    ra_other_claims :: !(Maybe a)                 -- ^ Additional claims of the resource access claim, defined by the user of this library
+    ra_other_claims    :: !(Maybe a)                 -- ^ Additional claims of the resource access claim, defined by the user of this library
   } deriving (Show)
 
 instance (FromJSON a) => FromJSON (ResourceAccessClaims a) where
   parseJSON = withObject "ResourceAccessClaims" $ \v ->
-    ResourceAccessClaims <$> v .: "resource_access" <*> optional (parseJSON (Object v)) 
+    ResourceAccessClaims <$> v .: "resource_access" <*> optional (parseJSON (Object v))
 
 -- | 'NoExtraClaims' is a data type representing the absence of additional claims.
 --   It is used when no extra claims are needed in the context of the claims.
