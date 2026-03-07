@@ -71,7 +71,8 @@ The library implements support for a server side OIDC Client (Digg.OIDC)
 The following functionality is implemented:
 
 * Supports server side Discovery, Authorization Code Flow, Token Refresh and RP initiated logout.
-* Supports a session storage with a redis compatible key/value storage, memory storage or postgreSQL storage.
+* Supports token type "Bearer" only.
+* Supports three types of session storage; a redis compatible key/value storage, a memory storage or a postgreSQL storage.
 * Supports cleanup of old sessions based on age of the session.
 * Uses the system /dev/random device for id generation. It can be overridden.
 
