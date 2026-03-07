@@ -11,7 +11,8 @@
 --    Stability: experimental
 --
 --   Defines the Session, SessionId, and SessionStore types for managing OIDC sessions.
-module Digg.OIDC.Client.Session (Session (..), SessionId, SessionStorage (..), getAccessToken, getAccessClaims, getIdToken, getIdClaims) where
+module Digg.OIDC.Client.Session (Session (..), SessionId, SessionStorage (..), getAccessToken,
+  getAccessClaims, getIdToken, getIdClaims, getRefreshToken) where
 
 import           Control.Monad           (when)
 import           Control.Monad.Catch     (MonadCatch, MonadThrow (throwM))
@@ -26,7 +27,7 @@ import           Data.Text.Encoding      (decodeUtf8, encodeUtf8)
 import           Digg.OIDC.Client        (OIDC, OIDCException (InvalidState))
 import           Digg.OIDC.Client.Claims (AccessTokenClaims, IdTokenClaims)
 import           Digg.OIDC.Client.Tokens (AccessTokenJWT, IdTokenJWT,
-                                          RefreshTokenJWT, validateToken)
+                                          validateToken)
 import           Digg.OIDC.Types         (Code, Nonce, State)
 import           GHC.Generics            (Generic)
 
@@ -38,7 +39,7 @@ data Session = Session
     sessionNonce        :: Maybe Nonce,       -- ^ The nonce value of the session
     sessionAccessToken  :: Maybe AccessTokenJWT,  -- ^ The access token of the session
     sessionIdToken      :: Maybe IdTokenJWT,  -- ^ The ID token of the session
-    sessionRefreshToken :: Maybe RefreshTokenJWT,  -- ^ The refresh token of the session
+    sessionRefreshToken :: Maybe Text,        -- ^ The refresh token of the session, it is opaque and should not be parsed, it is only used to refresh the session
     sessionCode         :: Maybe Code         -- ^ The authorization code of the session
   }
   deriving (Generic, Show)
@@ -107,10 +108,10 @@ getAccessToken storage sid = do
       when (isNothing (sessionAccessToken s)) $ throwM $ InvalidState "Missing access token"
       return s
 
--- | Retrieves the access token from the session storage.
+-- | Retrieves the ID token from the session storage.
 getIdToken :: (MonadIO m, MonadCatch m) => SessionStorage m  -- ^ The session storage
   -> SessionId      -- ^ The session identifier
-  -> m (Maybe IdTokenJWT)   -- ^ The logout request URL to redirect to
+  -> m (Maybe IdTokenJWT)   -- ^ The ID token
 getIdToken storage sid = do
 
     -- Verify the session
@@ -128,7 +129,31 @@ getIdToken storage sid = do
     verifySession (Just s) = do
       when (isJust (sessionState s)) $ throwM $ InvalidState "State should be empty"
       when (isJust (sessionNonce s)) $ throwM $ InvalidState "Nonce should be empty"
-      when (isNothing (sessionAccessToken s)) $ throwM $ InvalidState "Missing ID token"
+      when (isNothing (sessionIdToken s)) $ throwM $ InvalidState "Missing ID token"
+      return s
+
+-- | Retrieves the refresh token from the session storage.
+getRefreshToken :: (MonadIO m, MonadCatch m) => SessionStorage m  -- ^ The session storage
+  -> SessionId                    -- ^ The session identifier
+  -> m (Maybe Text)    -- ^ The refresh token
+getRefreshToken storage sid = do
+
+    -- Verify the session
+    session <- sessionStoreGet storage sid >>= verifySession
+
+    return $ sessionRefreshToken session
+
+  where
+
+    -- | Verifies the given session. If the session is 'Nothing', it throws an error.
+    -- If the session is 'Just', it returns the session if it is valid for this operation.
+    verifySession :: (MonadIO m, MonadThrow m) => Maybe Session -> m Session
+    verifySession Nothing = do
+      throwM $ InvalidState "No session found"
+    verifySession (Just s) = do
+      when (isJust (sessionState s)) $ throwM $ InvalidState "State should be empty"
+      when (isJust (sessionNonce s)) $ throwM $ InvalidState "Nonce should be empty"
+      when (isNothing (sessionRefreshToken s)) $ throwM $ InvalidState "Missing refresh token"
       return s
 
 getIdClaims :: (MonadIO m, MonadCatch m, FromJSON a) => OIDC

@@ -134,6 +134,9 @@ authorizationGranted storage sid mgr oidc state code = do
     -- Exchange code with tokens
     tr <- liftIO callTokenEndpoint
 
+    -- Check the type of the token response
+    unless (tokensResponseTokenType tr == "Bearer") $ throwM $ ValidationException "Invalid token type in token response, expected Bearer"
+
     -- Validate the ID token
     claims <- T.validateToken oidc $ tokensResponseIdToken tr
     liftIO $ T.validateIdClaims (providerIssuer . metadata $ oidcProvider oidc) (oidcClientId oidc) (sessionNonce session) claims

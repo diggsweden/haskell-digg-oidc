@@ -1,8 +1,12 @@
-{-# LANGUAGE DeriveGeneric     #-}
-{-# LANGUAGE LambdaCase        #-}
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE DeriveGeneric         #-}
+{-# LANGUAGE LambdaCase            #-}
+{-# LANGUAGE OverloadedStrings     #-}
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 {-# HLINT ignore "Use lambda-case" #-}
+
+{-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE NoFieldSelectors      #-}
+{-# LANGUAGE OverloadedRecordDot   #-}
 
 -- |
 --    Module: Digg.OIDC.Client.Tokens
@@ -18,6 +22,7 @@ module Digg.OIDC.Client.Claims
     IdClaims (..),
     AccessClaims (..),
     RolesClaims (..),
+    ProfileClaims (..),
     ResourceAccessClaims (..),
     NoExtraClaims (..),
     IdTokenClaims,
@@ -53,7 +58,6 @@ data Claims a = Claims
     exp          :: !IntDate,  -- ^ The expiration time of the token
     iat          :: !IntDate,  -- ^ The time the token was issued
     jti          :: !Text,     -- ^ The JWT ID of the token
-
     other_claims :: !a     -- ^ Additional claims of the token, defined by the user of this library
   }
   deriving (Show, Eq, Generic)
@@ -73,13 +77,12 @@ instance (FromJSON a) => FromJSON (Claims a) where
 -- The type parameter 'a' allows for flexibility in the type of the claims.
 data IdClaims a = IdClaims
   {
-    id_nonce        :: !(Maybe ByteString),   -- ^ The nonce value of the token
-    id_auth_time    :: !(Maybe IntDate),      -- ^ The time the user authenticated
-    id_acr          :: !(Maybe Text),         -- ^ The authentication context class reference
-    id_amr          :: !(Maybe Text),         -- ^ The authentication methods used
-    id_azp          :: !(Maybe Text),         -- ^ The authorized party
-
-    id_other_claims :: !(Maybe a)           -- ^ Additional claims of the id token, defined by the user of this library
+    nonce        :: !(Maybe ByteString),   -- ^ The nonce value of the token
+    auth_time    :: !(Maybe IntDate),      -- ^ The time the user authenticated
+    acr          :: !(Maybe Text),         -- ^ The authentication context class reference
+    amr          :: !(Maybe Text),         -- ^ The authentication methods used
+    azp          :: !(Maybe Text),         -- ^ The authorized party
+    other_claims :: !(Maybe a)           -- ^ Additional claims of the id token, defined by the user of this library
 
   } deriving (Show, Eq, Generic)
 
@@ -96,11 +99,11 @@ instance (FromJSON a) => FromJSON (IdClaims a) where
 -- The type parameter 'a' allows for flexibility in specifying the type of the claims.
 data AccessClaims a = AccessClaims
   {
-    a_scope        :: !(Maybe Text),  -- ^ The scope of the token
-    a_auth_time    :: !(Maybe IntDate), -- ^ The time the user authenticated
-    a_acr          :: !(Maybe Text),    -- ^ The authentication context class reference
-    a_amr          :: !(Maybe Text),    -- ^ The authentication methods used
-    a_other_claims :: !(Maybe a)        -- ^ Additional claims of the id token, defined by the user of this library
+    scope        :: !(Maybe Text),  -- ^ The scope of the token
+    auth_time    :: !(Maybe IntDate), -- ^ The time the user authenticated
+    acr          :: !(Maybe Text),    -- ^ The authentication context class reference
+    amr          :: !(Maybe Text),    -- ^ The authentication methods used
+    other_claims :: !(Maybe a)        -- ^ Additional claims of the id token, defined by the user of this library
   } deriving (Show, Eq, Generic)
 
 instance (FromJSON a) => FromJSON (AccessClaims a) where
@@ -116,7 +119,7 @@ instance (FromJSON a) => FromJSON (AccessClaims a) where
 -- | 'RolesClaim' is a type for the "roles" claim in the access tokens resource_access,
 -- which is a list of strings.
 data RolesClaims = RolesClaims
-  { r_roles :: ![Text]  -- ^ The list of roles in the claim
+  { roles :: ![Text]  -- ^ The list of roles in the claim
   } deriving (Show, Generic)
 
 instance FromJSON RolesClaims where
@@ -126,13 +129,52 @@ instance FromJSON RolesClaims where
 -- | 'ResourceAccessClaims' is a type for the "resource_access" claim in the access tokens,
 -- which is a map of resource names to their corresponding 'RolesClaims'.
 data ResourceAccessClaims a = ResourceAccessClaims
-  { ra_resource_access :: Map Text RolesClaims,   -- ^ The map of resource access in the claim
-    ra_other_claims    :: !(Maybe a)                 -- ^ Additional claims of the resource access claim, defined by the user of this library
-  } deriving (Show)
+  { resource_access :: Map Text RolesClaims,   -- ^ The map of resource access in the claim
+    other_claims    :: !(Maybe a)                 -- ^ Additional claims of the resource access claim, defined by the user of this library
+  } deriving (Show, Generic)
 
 instance (FromJSON a) => FromJSON (ResourceAccessClaims a) where
   parseJSON = withObject "ResourceAccessClaims" $ \v ->
     ResourceAccessClaims <$> v .: "resource_access" <*> optional (parseJSON (Object v))
+
+-- | 'ProfileClaims' is a type for the standard profile claims in the ID token,
+-- which includes various user attributes. 
+data ProfileClaims a = ProfileClaims
+  { name :: !(Maybe Text),
+    family_name :: !(Maybe Text),
+    given_name :: !(Maybe Text),
+    middle_name :: !(Maybe Text),
+    nickname :: !(Maybe Text),
+    preferred_username :: !(Maybe Text),
+    profile :: !(Maybe Text),
+    picture :: !(Maybe Text),
+    website :: !(Maybe Text),
+    gender :: !(Maybe Text),
+    birthdate :: !(Maybe Text),
+    zoneinfo :: !(Maybe Text),
+    locale :: !(Maybe Text),
+    updated_at :: !(Maybe Text),
+    other_claims :: !(Maybe a)
+  } deriving (Show, Generic)
+
+instance (FromJSON a) => FromJSON (ProfileClaims a) where
+  parseJSON = withObject "ProfileClaims" $ \v ->
+    ProfileClaims
+      <$> v .:? "name"
+      <*> v .:? "family_name"
+      <*> v .:? "given_name"
+      <*> v .:? "middle_name"
+      <*> v .:? "nickname"
+      <*> v .:? "preferred_username"
+      <*> v .:? "profile"
+      <*> v .:? "picture"
+      <*> v .:? "website"
+      <*> v .:? "gender"
+      <*> v .:? "birthdate"
+      <*> v .:? "zoneinfo"
+      <*> v .:? "locale"
+      <*> v .:? "updated_at"
+      <*> optional (parseJSON (Object v))
 
 -- | 'NoExtraClaims' is a data type representing the absence of additional claims.
 --   It is used when no extra claims are needed in the context of the claims.

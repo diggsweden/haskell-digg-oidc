@@ -1,6 +1,8 @@
-{-# LANGUAGE DeriveGeneric     #-}
-{-# LANGUAGE LambdaCase        #-}
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE DeriveGeneric       #-}
+{-# LANGUAGE LambdaCase          #-}
+{-# LANGUAGE OverloadedRecordDot #-}
+{-# LANGUAGE OverloadedStrings   #-}
+
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 {-# HLINT ignore "Use lambda-case" #-}
 
@@ -18,8 +20,7 @@ module Digg.OIDC.Client.Tokens
     validateAccessClaims,
     validateIdClaims,
     IdTokenJWT,
-    AccessTokenJWT,
-    RefreshTokenJWT
+    AccessTokenJWT
   )
 where
 
@@ -56,9 +57,6 @@ type IdTokenJWT = Jwt
 -- | Type alias for representing an access token in JWT (JSON Web Token) format.
 type AccessTokenJWT = Jwt
 
--- | Type alias for representing the refresh token in JWT (JSON Web Token) format.
-type RefreshTokenJWT = Jwt
-
 -- | Validates a given JWT token using the provided OIDC configuration and returns
 -- the token claims if the token is valid.
 --
@@ -93,7 +91,6 @@ validateToken oidc jwt' = do
 
     parsePayload:: (MonadIO m, FromJSON a) => ByteString -> m (Claims a)
     parsePayload payload = do
-      liftIO $ putStrLn $ "Decoding payload: " <> show payload
       case eitherDecode $ BL.fromStrict payload of
         Right x  -> return x
         Left err -> liftIO . throwIO . ValidationException $ pack err
@@ -114,16 +111,16 @@ validateIdClaims issuer client n claims = do
 
     now <- getCurrentIntDate
 
-    unless (iss claims == issuer)
-        $ throwM $ ValidationException $ "Issuer in identity token \"" <> iss claims <> "\" is different than expected issuer \"" <> issuer <> "\""
+    unless (claims.iss == issuer)
+        $ throwM $ ValidationException $ "Issuer in identity token \"" <> claims.iss <> "\" is different than expected issuer \"" <> issuer <> "\""
 
-    unless (client `elem` aud claims)
-        $ throwM $ ValidationException $ "Our client identity \"" <> client <> "\" isn't contained in the identity token's audience " <> (pack . show) (aud claims)
+    unless (client `elem` claims.aud)
+        $ throwM $ ValidationException $ "Our client identity \"" <> client <> "\" isn't contained in the identity token's audience " <> (pack . show) (claims.aud)
 
-    unless (now < exp claims)
+    unless (now < claims.exp)
         $ throwM $ ValidationException "Received identity token has expired"
 
-    unless (id_nonce (other_claims claims) == n)
+    unless (claims.other_claims.nonce == n)
         $ throwM $ ValidationException "Nonce mismatch"
 
 -- | Validates the access token claims.
@@ -144,13 +141,13 @@ validateAccessClaims issuer audience claims = do
 
     now <- getCurrentIntDate
 
-    unless (iss claims == issuer)
-        $ throwM $ ValidationException $ "Issuer from token \"" <> iss claims <> "\" is different than expected issuer \"" <> issuer <> "\""
+    unless (claims.iss == issuer)
+        $ throwM $ ValidationException $ "Issuer from token \"" <> claims.iss <> "\" is different than expected issuer \"" <> issuer <> "\""
 
-    unless (maybe True (`elem` aud claims) audience)
-        $ throwM $ ValidationException $ "our audience \"" <> fromMaybe "" audience <> "\" isn't contained in the token's audience " <> (pack . show) (aud claims)
+    unless (maybe True (`elem` claims.aud) audience)
+        $ throwM $ ValidationException $ "our audience \"" <> fromMaybe "" audience <> "\" isn't contained in the token's audience " <> (pack . show) (claims.aud)
 
-    unless (now < exp claims)
+    unless (now < claims.exp)
         $ throwM $ ValidationException "Received accesstoken has expired"
 
 -- | Current time as 'IntDate' for validating token expiration and issued at times.

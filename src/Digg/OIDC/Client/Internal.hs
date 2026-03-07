@@ -30,7 +30,7 @@ data TokensResponse = TokensResponse
     tokensResponseIdToken      :: !Jwt,               -- ^ The ID token
     tokensResponseScope        :: !(Maybe Text),      -- ^ The scopes
     tokensResponseExpiresIn    :: !(Maybe Integer),   -- ^ The expiration time
-    tokensResponseRefreshToken :: !(Maybe Jwt)        -- ^ The refresh token
+    tokensResponseRefreshToken :: !(Maybe Text)        -- ^ The refresh token, treat is as opaque
   }
   deriving (Show, Eq)
 
@@ -56,5 +56,5 @@ instance FromJSON TokensResponse where
 
 -- | Checks if an element is present in a given list wrapped in a 'Maybe' context.
 isAnElementOf :: Eq a => a -> Maybe [a] -> Bool
-isAnElementOf _ Nothing = False
+isAnElementOf _ Nothing   = False
 isAnElementOf a (Just as) = a `elem` as

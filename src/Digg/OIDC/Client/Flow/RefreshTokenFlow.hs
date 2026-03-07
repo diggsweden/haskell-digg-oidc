@@ -18,22 +18,23 @@ import           Control.Monad.IO.Class              (MonadIO (liftIO))
 import           Data.Aeson                          (eitherDecode)
 import           Data.Maybe                          (fromJust, isJust,
                                                       isNothing)
-import           Data.Text                           (pack)
+import           Data.Text                           (Text, pack)
 import           Data.Text.Encoding                  (encodeUtf8)
 import           Digg.OIDC.Client                    (OIDC (..),
                                                       OIDCException (InvalidState, UnsupportedOperation, ValidationException))
-import           Digg.OIDC.Client.Claims             (IdTokenClaims, AccessTokenClaims, NoExtraClaims)
+import           Digg.OIDC.Client.Claims             (AccessTokenClaims,
+                                                      IdTokenClaims,
+                                                      NoExtraClaims)
 import           Digg.OIDC.Client.Discovery.Provider (Provider (..),
                                                       ProviderMetadata (..))
 import           Digg.OIDC.Client.Internal           (TokensResponse (..),
                                                       isAnElementOf)
 import           Digg.OIDC.Client.Session            (Session (..), SessionId,
                                                       SessionStorage (..))
-import           Digg.OIDC.Client.Tokens             (AccessTokenJWT,
+import           Digg.OIDC.Client.Tokens             (validateAccessClaims,
                                                       validateIdClaims,
-                                                      validateToken, validateAccessClaims)
+                                                      validateToken)
 import           Digg.OIDC.Types                     (Address (..), Code)
-import           Jose.Jwt                            (Jwt (..))
 import           Network.HTTP.Client                 (Manager, Request (..),
                                                       Response (responseBody),
                                                       httpLbs, requestFromURI,
@@ -59,6 +60,9 @@ refreshToken storage sid mgr oidc = do
 
     -- Call the token endpoint to refresh the tokens
     tr <- liftIO $ callTokenEndpoint (sessionCode session) (sessionRefreshToken session)
+
+    -- Check the type of the token response
+    unless (tokensResponseTokenType tr == "Bearer") $ throwM $ ValidationException "Invalid token type in token response, expected Bearer"
 
     -- Validate the ID token
     iclaims :: (IdTokenClaims NoExtraClaims) <- validateToken oidc $ tokensResponseIdToken tr
@@ -96,7 +100,7 @@ refreshToken storage sid mgr oidc = do
       return s
 
     -- | Calls the token endpoint to refresh the tokens.
-    callTokenEndpoint :: Maybe Code -> Maybe AccessTokenJWT -> IO TokensResponse
+    callTokenEndpoint :: Maybe Code -> Maybe Text -> IO TokensResponse
     callTokenEndpoint code rt = do
       req <- requestFromURI endpoint
       res <- httpLbs (urlEncodedBody (base code rt) $ req {method = "POST"}) mgr
@@ -118,6 +122,6 @@ refreshToken storage sid mgr oidc = do
         ("client_id", encodeUtf8 $ oidcClientId oidc),
         ("client_secret", encodeUtf8 $ oidcClientSecret oidc),
         ("redirect_uri", encodeUtf8 $ oidcRedirectUri oidc),
-        ("refresh_token", unJwt $ fromJust rt)
+        ("refresh_token", encodeUtf8 $ fromJust rt)
       ]
 
