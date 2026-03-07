@@ -72,6 +72,7 @@ The following functionality is implemented:
 
 * Supports server side Discovery, Authorization Code Flow, Token Refresh and RP initiated logout.
 * Supports token type "Bearer" only.
+* Have the standard id token claims, access token claims, profile claims defined and the specific keycloak resource_access claims defined.
 * Supports three types of session storage; a redis compatible key/value storage, a memory storage or a postgreSQL storage.
 * Supports cleanup of old sessions based on age of the session.
 * Uses the system /dev/random device for id generation. It can be overridden.
