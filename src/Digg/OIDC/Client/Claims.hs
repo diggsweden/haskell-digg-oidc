@@ -30,7 +30,7 @@ module Digg.OIDC.Client.Claims
   )
 where
 
-import           Control.Applicative (optional, (<|>))
+import           Control.Applicative ((<|>))
 import           Data.Aeson          (FromJSON (parseJSON), Value (..),
                                       withObject, (.:), (.:?))
 import           Data.ByteString     (ByteString)
@@ -82,7 +82,7 @@ data IdClaims a = IdClaims
     acr          :: !(Maybe Text),         -- ^ The authentication context class reference
     amr          :: !(Maybe Text),         -- ^ The authentication methods used
     azp          :: !(Maybe Text),         -- ^ The authorized party
-    other_claims :: !(Maybe a)           -- ^ Additional claims of the id token, defined by the user of this library
+    other_claims :: !a           -- ^ Additional claims of the id token, defined by the user of this library
 
   } deriving (Show, Eq, Generic)
 
@@ -93,7 +93,7 @@ instance (FromJSON a) => FromJSON (IdClaims a) where
       <*> o .:? "acr"
       <*> o .:? "amr"
       <*> o .:? "azp"
-      <*> optional (parseJSON (Object o))
+      <*> parseJSON (Object o)
 
 -- | 'AccessClaims' represents the claims contained in an access token.
 -- The type parameter 'a' allows for flexibility in specifying the type of the claims.
@@ -103,7 +103,7 @@ data AccessClaims a = AccessClaims
     auth_time    :: !(Maybe IntDate), -- ^ The time the user authenticated
     acr          :: !(Maybe Text),    -- ^ The authentication context class reference
     amr          :: !(Maybe Text),    -- ^ The authentication methods used
-    other_claims :: !(Maybe a)        -- ^ Additional claims of the id token, defined by the user of this library
+    other_claims :: !a        -- ^ Additional claims of the id token, defined by the user of this library
   } deriving (Show, Eq, Generic)
 
 instance (FromJSON a) => FromJSON (AccessClaims a) where
@@ -113,8 +113,7 @@ instance (FromJSON a) => FromJSON (AccessClaims a) where
       <*> (fmap IntDate <$> (o .:? "auth_time"))
       <*> o .:? "acr"
       <*> o .:? "amr"
-      <*> optional (parseJSON (Object o))
-
+      <*> parseJSON (Object o)
 
 -- | 'RolesClaim' is a type for the "roles" claim in the access tokens resource_access,
 -- which is a list of strings.
@@ -130,12 +129,12 @@ instance FromJSON RolesClaims where
 -- which is a map of resource names to their corresponding 'RolesClaims'.
 data ResourceAccessClaims a = ResourceAccessClaims
   { resource_access :: Map Text RolesClaims,   -- ^ The map of resource access in the claim
-    other_claims    :: !(Maybe a)                 -- ^ Additional claims of the resource access claim, defined by the user of this library
+    other_claims    :: !a                 -- ^ Additional claims of the resource access claim, defined by the user of this library
   } deriving (Show, Generic)
 
 instance (FromJSON a) => FromJSON (ResourceAccessClaims a) where
   parseJSON = withObject "ResourceAccessClaims" $ \v ->
-    ResourceAccessClaims <$> v .: "resource_access" <*> optional (parseJSON (Object v))
+    ResourceAccessClaims <$> v .: "resource_access" <*> parseJSON (Object v)
 
 -- | 'ProfileClaims' is a type for the standard profile claims in the ID token,
 -- which includes various user attributes. 
@@ -153,8 +152,8 @@ data ProfileClaims a = ProfileClaims
     birthdate :: !(Maybe Text),
     zoneinfo :: !(Maybe Text),
     locale :: !(Maybe Text),
-    updated_at :: !(Maybe Text),
-    other_claims :: !(Maybe a)
+    updated_at :: !(Maybe IntDate),
+    other_claims :: !a
   } deriving (Show, Generic)
 
 instance (FromJSON a) => FromJSON (ProfileClaims a) where
@@ -173,12 +172,13 @@ instance (FromJSON a) => FromJSON (ProfileClaims a) where
       <*> v .:? "birthdate"
       <*> v .:? "zoneinfo"
       <*> v .:? "locale"
-      <*> v .:? "updated_at"
-      <*> optional (parseJSON (Object v))
+      <*> (fmap IntDate <$> v .:? "updated_at")
+      <*> parseJSON (Object v)
 
 -- | 'NoExtraClaims' is a data type representing the absence of additional claims.
 --   It is used when no extra claims are needed in the context of the claims.
-data NoExtraClaims = NoClaims
-  deriving (Show, Eq, Generic)
+data NoExtraClaims = NoExtraClaims
+  { dummy :: ()  -- ^ A dummy field to satisfy the JSON parsing requirements, asthe type needs to be an object for the FromJSON instance.
+  } deriving (Show, Eq, Generic)
 
 instance FromJSON NoExtraClaims
