@@ -38,6 +38,8 @@ import           Data.Text                           (Text, pack)
 import           Data.Time.Clock.POSIX               (getPOSIXTime)
 import           Digg.OIDC.Client                    (OIDC (..),
                                                       OIDCException (..))
+import           Digg.OIDC.Types                     (Audience)
+
 import           Digg.OIDC.Client.Claims             (AccessTokenClaims,
                                                       Claims (..),
                                                       IdClaims (..),
@@ -103,10 +105,10 @@ validateToken oidc jwt' = do
 --
 -- If not it throws a 'ValidationException'.
 validateIdClaims :: Text -- ^ The expected issuer
-  -> Text         -- ^ The client ID (audience)
-  -> Maybe Nonce  -- ^ The nonce value
-  -> IdTokenClaims a  -- ^ The token claims
-  -> IO ()            -- ^ Everything went well if we return, maybe we should return the claims for continuation purposes
+  -> Maybe Audience       -- ^ The expected audience (usually the client ID for the ID token)
+  -> Maybe Nonce          -- ^ The nonce value
+  -> IdTokenClaims a      -- ^ The token claims
+  -> IO ()                -- ^ Everything went well if we return, maybe we should return the claims for continuation purposes
 validateIdClaims issuer client n claims = do
 
     now <- getCurrentIntDate
@@ -114,8 +116,8 @@ validateIdClaims issuer client n claims = do
     unless (claims.iss == issuer)
         $ throwM $ ValidationException $ "Issuer in identity token \"" <> claims.iss <> "\" is different than expected issuer \"" <> issuer <> "\""
 
-    unless (client `elem` claims.aud)
-        $ throwM $ ValidationException $ "Our client identity \"" <> client <> "\" isn't contained in the identity token's audience " <> (pack . show) (claims.aud)
+    unless (maybe True (`elem` claims.aud) client)
+        $ throwM $ ValidationException $ "our audience \"" <> fromMaybe "" client <> "\" isn't contained in the token's audience " <> (pack . show) (claims.aud)
 
     unless (now < claims.exp)
         $ throwM $ ValidationException "Received identity token has expired"
@@ -134,8 +136,8 @@ validateIdClaims issuer client n claims = do
 --
 -- If not it throws a 'ValidationException'.
 validateAccessClaims :: Text  -- ^ The expected issuer
-  -> Maybe Text                     -- ^ The expected audience
-  -> AccessTokenClaims a            -- ^ The token claims
+  -> Maybe Audience           -- ^ The expected audience (usually the resource server where you want access)
+  -> AccessTokenClaims a      -- ^ The token claims
   -> IO ()                    -- ^ Everything went well if we return, maybe we should return the claims for continuation purposes
 validateAccessClaims issuer audience claims = do
 

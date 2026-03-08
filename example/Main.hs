@@ -139,7 +139,7 @@ main = do
   mgr <- newManager tlsManagerSettings
   provider <- liftIO $ discover issuer mgr
   pPrint $ metadata provider
-  let oidc = createOIDC client secret (toStrict (fromStrict (decodeUtf8 baseUrl) <> "/login/callback")) (Just (toStrict (fromStrict (decodeUtf8 baseUrl) <> "/logout/callback"))) Nothing provider
+  let oidc = createOIDC client secret (toStrict (fromStrict (decodeUtf8 baseUrl) <> "/login/callback")) (Just (toStrict (fromStrict (decodeUtf8 baseUrl) <> "/logout/callback"))) provider
 
   -- Start the server
   let port = getPort baseUrl
@@ -239,7 +239,7 @@ run' = do
     case sid of
       Just s -> do
         AuthServerEnv {..} <- lift ask
-        _ <- liftIO $ catch (Right <$> refreshToken storage (encodeUtf8 s) mgr oidc) handleError
+        _ <- liftIO $ catch (Right <$> refreshToken storage (encodeUtf8 s) mgr oidc Nothing) handleError
         redirect "/fetch"
       Nothing -> status404 "No current ongoing session found"
 
@@ -324,7 +324,7 @@ run' = do
           AuthServerEnv {..} <- lift ask
           state <- queryParam "state"
           code <- queryParam "code"
-          tokens <- liftIO $ catch (Right <$> authorizationGranted storage (encodeUtf8 sid) mgr oidc state code) handleError
+          tokens <- liftIO $ catch (Right <$> authorizationGranted storage (encodeUtf8 sid) mgr oidc state code Nothing) handleError
           blaze $ htmlSuccess tokens
         Nothing -> status400 "Missing session information"
 

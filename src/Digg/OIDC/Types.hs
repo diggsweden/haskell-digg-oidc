@@ -7,7 +7,8 @@
 --    Maintainer  : tomas.stenlund@telia.com
 --    Stability   : experimental
 --
---    The module defines various types used in the OIDC client library, such as 'Nonce', 'State', 'IssuerLocation', 'Endpoint', 'Scope', 'ScopeValue', 'Code', 'Address', and 'Parameters'.
+--    The module defines various types used in the OIDC client library, such as 'Nonce', 'State',
+--    'Issuer', 'Endpoint', 'Scope', 'ScopeValue', 'Code', 'Address', and 'Parameters'.
 module Digg.OIDC.Types
   ( Nonce,
     State,
@@ -18,6 +19,7 @@ module Digg.OIDC.Types
     Code,
     Address (..),
     Parameters,
+    Audience
   )
 where
 
@@ -79,6 +81,11 @@ type ScopeValue = Text
 -- | 'Scope' represents a list of 'ScopeValue's, which are used to define
 -- the permissions or access levels requested by an OpenID Connect client.
 type Scope = [ScopeValue]
+
+-- | 'Audience' is a type alias for 'Text', representing the audience to verify in
+-- the claims. It is used to specify the intended recipients of a token, such as an access token,
+-- to ensure that the token is being used by the correct party.
+type Audience = Text
 
 -- | 'Issuer' is a type alias for 'Text', representing the OpenID Connect (OIDC) issuer.
 -- it is mainly used during discovery and verification.

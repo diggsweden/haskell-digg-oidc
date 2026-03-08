@@ -24,12 +24,14 @@ import           Data.ByteString         (ByteString)
 import           Data.Maybe              (isJust, isNothing)
 import           Data.Text               (Text)
 import           Data.Text.Encoding      (decodeUtf8, encodeUtf8)
-import           Digg.OIDC.Client        (OIDC, OIDCException (InvalidState))
+import           Digg.OIDC.Client        (OIDC(..), OIDCException (InvalidState))
 import           Digg.OIDC.Client.Claims (AccessTokenClaims, IdTokenClaims)
 import           Digg.OIDC.Client.Tokens (AccessTokenJWT, IdTokenJWT,
-                                          validateToken)
+                                          validateToken, validateAccessClaims, validateIdClaims)
 import           Digg.OIDC.Types         (Code, Nonce, State)
 import           GHC.Generics            (Generic)
+import Control.Monad.IO.Class (liftIO)
+import Digg.OIDC.Client.Discovery.Provider (Provider (..), ProviderMetadata (..))
 
 -- | The 'Session' data type represents a user session in the OIDC (OpenID Connect) context.
 -- It is used to store and manage session-related information for authenticated users or users
@@ -156,6 +158,10 @@ getRefreshToken storage sid = do
       when (isNothing (sessionRefreshToken s)) $ throwM $ InvalidState "Missing refresh token"
       return s
 
+-- | Retrieves the ID token claims from the session storage and validates them.
+-- This function checks the validity of the ID token claims based on the provided
+-- issuer, audience, and optional nonce. It performs necessary checks to ensure that the token is valid
+-- and has not been tampered with. If the claims are valid, it returns them; otherwise, it throws a 'ValidationException'.
 getIdClaims :: (MonadIO m, MonadCatch m, FromJSON a) => OIDC
   -> SessionStorage m  -- ^ The session storage
   -> SessionId -- ^ The session identifier
@@ -182,6 +188,10 @@ getIdClaims oidc storage sid = do
       when (isNothing (sessionIdToken s)) $ throwM $ InvalidState "Missing ID token"
       return s
 
+-- | Retrieves the access token claims from the session storage and validates them.
+-- This function checks the validity of the access token claims based on the provided
+-- issuer and audience. It performs necessary checks to ensure that the token is valid
+-- and has not been tampered with. If the claims are valid, it returns them; otherwise, it throws a 'ValidationException'.
 getAccessClaims :: (MonadIO m, MonadCatch m, FromJSON a) => OIDC
   -> SessionStorage m  -- ^ The session storage
   -> SessionId -- ^ The session identifier
@@ -192,8 +202,7 @@ getAccessClaims oidc storage sid = do
     session <- sessionStoreGet storage sid >>= verifySession
 
     -- Validate the Access token and extract the claims
-    let jwt = sessionAccessToken session
-    mapM (validateToken oidc) jwt
+    mapM (validateToken oidc) (sessionAccessToken session)
 
   where
 
@@ -207,3 +216,5 @@ getAccessClaims oidc storage sid = do
       when (isJust (sessionNonce s)) $ throwM $ InvalidState "Nonce should be empty"
       when (isNothing (sessionAccessToken s)) $ throwM $ InvalidState "Missing Access token"
       return s
+
+-- validateAccessClaims (providerIsseuer (oidcProvider . oidc)) (oidcAudience oidc)

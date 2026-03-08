@@ -5,7 +5,7 @@
 --    Maintainer: tomas.stenlund@telia.com
 --    Stability: experimental
 --
---    The module defines types and functions to handle client configuration and creations.
+--    The module defines types and functions to handle client configuration and creation.
 module Digg.OIDC.Client (OIDC (..), createOIDC, OIDCException (..)) where
 
 import           Control.Exception                   (Exception)
@@ -16,12 +16,11 @@ import           Jose.Jwt                            (JwtError)
 
 -- | This data type represents information needed in the OpenID flows.
 data OIDC = OIDC
-  { oidcClientId          :: Text,     -- ^ The client id as defined by the OIDC provider.
+  { oidcClientId          :: Text,     -- ^ The client id as defined by the OIDC provider, verified in the id token audience claim.
     oidcClientSecret      :: Text,     -- ^ The client secret as defined by the OIDC provider.
     oidcRedirectUri       :: Text,     -- ^ The redirect URI.
     oidcLogoutRedirectUri :: Maybe Text, -- ^ The logout redirect URI.
-    oidcProvider          :: Provider,  -- ^ The OIDC provider configuration.
-    oidcAudience          :: Maybe Text -- ^ The audience to verify in the Access Token.  
+    oidcProvider          :: Provider   -- ^ The OIDC provider configuratio
   }
 
 -- | Creates an OIDC (OpenID Connect) client configuration with the given parameters.
@@ -29,17 +28,15 @@ createOIDC :: Text  -- ^ The client id as defined by the OIDC provider.
   -> Text           -- ^ The client secret as defined by the OIDC provider.
   -> Text           -- ^ The redirect URI.
   -> Maybe Text     -- ^ The logout redirect URI.
-  -> Maybe Text     -- ^ The audience to verify in the Access Token.
   -> Provider       -- ^ The OIDC provider configuration.
   -> OIDC           -- ^ The OIDC client configuration.
-createOIDC clientId clientSecret redirectURI logoutRedirectURI audience provider =
+createOIDC clientId clientSecret redirectURI logoutRedirectURI provider =
   OIDC
     { oidcClientId = clientId,
       oidcClientSecret = clientSecret,
       oidcRedirectUri = redirectURI,
       oidcLogoutRedirectUri = logoutRedirectURI,
-      oidcProvider = provider,
-      oidcAudience = audience
+      oidcProvider = provider
     }
 
 -- | The 'OIDCException' data type represents exceptions that can occur

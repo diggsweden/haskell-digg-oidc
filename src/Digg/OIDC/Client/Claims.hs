@@ -38,6 +38,7 @@ import           Data.Map.Strict     (Map)
 import           Data.Maybe          (fromMaybe)
 import           Data.Text           (Text)
 import           Data.Text.Encoding  (encodeUtf8)
+import           Digg.OIDC.Types     (Audience)
 import           GHC.Generics        (Generic)
 import           Jose.Jwt            (IntDate (..))
 import           Prelude             hiding (exp)
@@ -54,7 +55,7 @@ type AccessTokenClaims a = Claims (AccessClaims a)
 data Claims a = Claims
   { iss          :: !Text,     -- ^ The issuer of the token
     sub          :: !Text,     -- ^ The subject of the token
-    aud          :: ![Text],   -- ^ The audience of the token
+    aud          :: ![Audience],   -- ^ The audience of the token
     exp          :: !IntDate,  -- ^ The expiration time of the token
     iat          :: !IntDate,  -- ^ The time the token was issued
     jti          :: !Text,     -- ^ The JWT ID of the token
@@ -137,23 +138,23 @@ instance (FromJSON a) => FromJSON (ResourceAccessClaims a) where
     ResourceAccessClaims <$> v .: "resource_access" <*> parseJSON (Object v)
 
 -- | 'ProfileClaims' is a type for the standard profile claims in the ID token,
--- which includes various user attributes. 
+-- which includes various user attributes.
 data ProfileClaims a = ProfileClaims
-  { name :: !(Maybe Text),
-    family_name :: !(Maybe Text),
-    given_name :: !(Maybe Text),
-    middle_name :: !(Maybe Text),
-    nickname :: !(Maybe Text),
+  { name               :: !(Maybe Text),
+    family_name        :: !(Maybe Text),
+    given_name         :: !(Maybe Text),
+    middle_name        :: !(Maybe Text),
+    nickname           :: !(Maybe Text),
     preferred_username :: !(Maybe Text),
-    profile :: !(Maybe Text),
-    picture :: !(Maybe Text),
-    website :: !(Maybe Text),
-    gender :: !(Maybe Text),
-    birthdate :: !(Maybe Text),
-    zoneinfo :: !(Maybe Text),
-    locale :: !(Maybe Text),
-    updated_at :: !(Maybe IntDate),
-    other_claims :: !a
+    profile            :: !(Maybe Text),
+    picture            :: !(Maybe Text),
+    website            :: !(Maybe Text),
+    gender             :: !(Maybe Text),
+    birthdate          :: !(Maybe Text),
+    zoneinfo           :: !(Maybe Text),
+    locale             :: !(Maybe Text),
+    updated_at         :: !(Maybe IntDate),
+    other_claims       :: !a
   } deriving (Show, Generic)
 
 instance (FromJSON a) => FromJSON (ProfileClaims a) where

@@ -32,7 +32,7 @@ import           Digg.OIDC.Client.Session            (Session (..), SessionId,
                                                       SessionStorage (..))
 import qualified Digg.OIDC.Client.Tokens             as T
 import           Digg.OIDC.Types                     (Address (..), Code, Nonce,
-                                                      Parameters, Scope, State)
+                                                      Parameters, Scope, State, Audience)
 import           Network.HTTP.Client                 (Manager, Request (..),
                                                       Response (responseBody),
                                                       getUri, httpLbs,
@@ -122,8 +122,9 @@ authorizationGranted :: (MonadIO m, MonadCatch m, FromJSON a) => SessionStorage 
   -> OIDC       -- ^ The OIDC configuration
   -> State      -- ^ The state
   -> Code       -- ^ The authorization code
+  -> Maybe Audience -- ^ The audience to verify in the access token, if 'Nothing' the audience will not be verified 
   -> m (IdTokenClaims a)
-authorizationGranted storage sid mgr oidc state code = do
+authorizationGranted storage sid mgr oidc state code maud = do
 
     -- Verify that the provider supports authorization code grant type
     unless (isAnElementOf "authorization_code" (providerGrantTypesSupported (metadata $ oidcProvider oidc))) $ throwM $ UnsupportedOperation "Authorization code grant not supported by OP"
@@ -139,11 +140,11 @@ authorizationGranted storage sid mgr oidc state code = do
 
     -- Validate the ID token
     claims <- T.validateToken oidc $ tokensResponseIdToken tr
-    liftIO $ T.validateIdClaims (providerIssuer . metadata $ oidcProvider oidc) (oidcClientId oidc) (sessionNonce session) claims
+    liftIO $ T.validateIdClaims (providerIssuer . metadata $ oidcProvider oidc) (Just $ oidcClientId oidc) (sessionNonce session) claims
 
     -- Validate the Access token
     claimsA::(AccessTokenClaims NoExtraClaims) <- T.validateToken oidc $ tokensResponseAccessToken tr
-    liftIO $ T.validateAccessClaims (providerIssuer . metadata $ oidcProvider oidc) (oidcAudience oidc) claimsA
+    liftIO $ T.validateAccessClaims (providerIssuer . metadata $ oidcProvider oidc) maud claimsA
 
     -- Update the session
     sessionStoreSave storage sid $

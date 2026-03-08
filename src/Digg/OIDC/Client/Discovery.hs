@@ -45,9 +45,9 @@ createJWKSRequest :: (MonadThrow m) => Endpoint -> m Request
 createJWKSRequest location = do
   requestFromURI $ uri location
 
--- | Discover the OpenID Connect provider configuration for a given issuer location.
+-- | Discover the OpenID Connect provider configuration for a given issuer.
 --
--- This function takes an 'IssuerLocation' and an HTTP 'Manager' and performs
+-- This function takes an 'Issuer' and an HTTP 'Manager' and performs
 -- the HTTP requests to retrieve the provider's configuration.
 discover :: Issuer  -- ^ The issuer location, the well-known openid configuration path is appended to this location
   -> Manager                -- ^ The HTTP manager to use for the requests

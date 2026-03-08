@@ -34,7 +34,7 @@ import           Digg.OIDC.Client.Session            (Session (..), SessionId,
 import           Digg.OIDC.Client.Tokens             (validateAccessClaims,
                                                       validateIdClaims,
                                                       validateToken)
-import           Digg.OIDC.Types                     (Address (..), Code)
+import           Digg.OIDC.Types                     (Address (..), Code, Audience)
 import           Network.HTTP.Client                 (Manager, Request (..),
                                                       Response (responseBody),
                                                       httpLbs, requestFromURI,
@@ -49,8 +49,9 @@ refreshToken :: (MonadIO m, MonadCatch m) => SessionStorage m   -- ^ The session
   -> SessionId -- ^ The session identifier to refresh
   -> Manager   -- ^ The HTTP manager
   -> OIDC      -- ^ The OIDC configuration
+  -> Maybe Audience -- ^ The audience to verify in the access token, if 'Nothing' the audience will not be verified
   -> m () -- ^ The token claims
-refreshToken storage sid mgr oidc = do
+refreshToken storage sid mgr oidc maud = do
 
     -- Verify that the provider supports authorization code grant type
     unless (isAnElementOf "refresh_token" (providerGrantTypesSupported (metadata $ oidcProvider oidc))) $ throwM $ UnsupportedOperation "Refresh token grant type not supported"
@@ -66,11 +67,11 @@ refreshToken storage sid mgr oidc = do
 
     -- Validate the ID token
     iclaims :: (IdTokenClaims NoExtraClaims) <- validateToken oidc $ tokensResponseIdToken tr
-    liftIO $ validateIdClaims (providerIssuer . metadata $ oidcProvider oidc) (oidcClientId oidc) (sessionNonce session) iclaims
+    liftIO $ validateIdClaims (providerIssuer . metadata $ oidcProvider oidc) (Just $ oidcClientId oidc) (sessionNonce session) iclaims
 
     -- Validate the Access token
     aclaims :: (AccessTokenClaims NoExtraClaims) <- validateToken oidc $ tokensResponseAccessToken tr
-    liftIO $ validateAccessClaims (providerIssuer . metadata $ oidcProvider oidc) (oidcAudience oidc) aclaims
+    liftIO $ validateAccessClaims (providerIssuer . metadata $ oidcProvider oidc) maud aclaims
 
     -- Update the session with the new tokens
     sessionStoreSave storage sid $
