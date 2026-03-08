@@ -178,7 +178,7 @@ instance (FromJSON a) => FromJSON (ProfileClaims a) where
 -- | 'NoExtraClaims' is a data type representing the absence of additional claims.
 --   It is used when no extra claims are needed in the context of the claims.
 data NoExtraClaims = NoExtraClaims
-  { dummy :: ()  -- ^ A dummy field to satisfy the JSON parsing requirements, asthe type needs to be an object for the FromJSON instance.
+  { dummy :: ()  -- ^ A dummy field to satisfy the JSON parsing requirements, as the type needs to be an object for the FromJSON instance.
   } deriving (Show, Eq, Generic)
 
 instance FromJSON NoExtraClaims
