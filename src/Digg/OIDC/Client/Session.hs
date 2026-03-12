@@ -216,5 +216,3 @@ getAccessClaims oidc storage sid = do
       when (isJust (sessionNonce s)) $ throwM $ InvalidState "Nonce should be empty"
       when (isNothing (sessionAccessToken s)) $ throwM $ InvalidState "Missing Access token"
       return s
-
--- validateAccessClaims (providerIsseuer (oidcProvider . oidc)) (oidcAudience oidc)
